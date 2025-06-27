@@ -65,7 +65,7 @@ aws sts get-caller-identity
 
 ![](./aws-images/1.png)
 
-## example 1
+## example 1 vpc
 
 ```powershell
 
@@ -77,4 +77,35 @@ terraform apply -auto-approve
 
 ![](./aws-images/2.png)
 
+VPC > Your VPCs
+
 ![](./aws-images/3.png)
+
+REMEMBER TO EXECUTE TERRAFORM DESTROY FOR DONT WASTE MONEY
+
+## example 2 ec2
+
+```powershell
+
+terraform init
+terraform plan
+terraform apply -auto-approve
+
+```
+
+execute powershell script `connection.ps1`
+
+```powershell
+    powershell -ExecutionPolicy Bypass -File .\connection.ps1
+```
+
+![](./aws-images/4.png)
+
+Instances > EC2
+
+![](./aws-images/5.png)
+
+REMEMBER TO EXECUTE TERRAFORM DESTROY FOR DONT WASTE MONEY
+
+
+
