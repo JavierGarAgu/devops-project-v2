@@ -47,8 +47,6 @@ aws iam delete-access-key --user-name terraform-admin --access-key-id 12345
 aws iam create-access-key --user-name terraform-admin```
 ```
 
-
-
 #### then in local powershell
 
 Add environment vars
@@ -56,7 +54,7 @@ Add environment vars
 ```powershell
 $env:AWS_ACCESS_KEY_ID="accesskeyid"
 $env:AWS_SECRET_ACCESS_KEY="accesskey"
-$env:AWS_DEFAULT_REGION="eu-north-1" 
+$env:AWS_DEFAULT_REGION="your-region" 
 ```
 
 Whoami
@@ -66,3 +64,17 @@ aws sts get-caller-identity
 ```
 
 ![](./aws-images/1.png)
+
+## example 1
+
+```powershell
+
+terraform init
+terraform plan
+terraform apply -auto-approve
+
+```
+
+![](./aws-images/2.png)
+
+![](./aws-images/3.png)
