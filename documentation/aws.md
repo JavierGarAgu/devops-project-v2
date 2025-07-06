@@ -107,5 +107,44 @@ Instances > EC2
 
 REMEMBER TO EXECUTE TERRAFORM DESTROY FOR DONT WASTE MONEY
 
+## example 3 EKS 
+
+```powershell
+
+terraform init
+terraform plan
+terraform apply -auto-approve
+
+```
+
+https://developer.hashicorp.com/terraform/tutorials/kubernetes/eks
+
+i modified the tutorial for waste less money
+
+Explanation of the code:
+
+| Step | Description                                                                                                                                                                                                                      |
+|-------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1     | Create the VPC.                                                                                                                                                                                                                  |
+| 2     | Create the Internet Gateway (IGW) and attach it to the VPC.                                                                                                                                                                      |
+| 3     | Create 2 public subnets in the VPC, and apply special Kubernetes tags for service discovery and load balancer integration.                                                                                                       |
+| 4     | Create a route table associated with the VPC.                                                                                                                                                                                   |
+| 5     | Create a route in the new route table that points to the IGW created earlier; this allows the public subnets to access the internet.                                                                                            |
+| 6     | Associate the new route table with the public subnets created earlier.                                                                                                                                                           |
+| 7     | Create an IAM role for the EKS cluster, assigning a trust policy allowing the `eks.amazonaws.com` service to assume this role (this role allows the EKS control plane to manage AWS resources on your behalf).                    |
+| 8     | Create the EKS cluster with the following options: <br> - Name: `cheap-eks` <br> - Version: `1.29` (a recent stable Kubernetes version at the time, to support latest features and security updates) <br> - Using the IAM role created earlier <br> - Using the VPC public subnets created earlier <br> - Endpoint public access enabled (to allow API access over the internet) |
+| 9     | Create an IAM role for the node group (this role is different from the cluster role because it is assumed by the worker nodes, allowing them to interact with AWS services such as EC2, ECR, and the VPC networking).              |
+| 10    | Create an EKS managed node group (this is different from the EKS cluster itself—while the cluster is the Kubernetes control plane managed by AWS, the node group consists of the worker EC2 instances that run your workloads; in AWS EKS, this separation is explicit, whereas in Azure AKS, node management is often more abstracted and integrated). |
+| 11    | Define outputs to display connection information such as the cluster endpoint and cluster name for easy access.                                                                                                                 |
+
+```powershell
+
+aws eks --region eu-north-1 update-kubeconfig --name $(terraform output -raw cluster_name)
+
+```
+
+
+
+
 
 
