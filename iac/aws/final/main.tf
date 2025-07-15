@@ -169,15 +169,19 @@ resource "aws_instance" "example" {
               unzip awscliv2.zip
               ./aws/install
 
-              # Install kubectl (latest stable)
-              curl -LO "https://dl.k8s.io/release/$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/arm64/kubectl"
-              install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-
+              # Install kubectl for ARM64 (latest stable)
+              KUBECTL_VERSION=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
+              curl -LO "https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/arm64/kubectl"
+              chmod +x kubectl
+              mv kubectl /usr/local/bin/kubectl
+              
               # Install Docker
               yum install -y docker
               systemctl enable docker
               systemctl start docker
               usermod -aG docker ec2-user
+              # Reboot to apply Docker group membership
+              reboot
             EOF
 
   tags = {
