@@ -157,7 +157,10 @@ From that VM, you can use kubectl to access the EKS API endpoint.
 
 Your PC (outside that VPC CIDR) cannot connect directly to the API.
 
-You can create/manage K8s resources only from the VM or anything inside that VM VPC.
+You can create/manage K8s resources only from the VM
+
+In the VM is already installed all the tools needed for k8s
+thanks to the script `setup.sh` allocated with the terraform files
 
 for that, we use the resources that i created before, adding the peering between the 2 vpcs and SG to pass traffic between them
 
@@ -168,6 +171,34 @@ terraform plan
 terraform apply -auto-approve
 
 ```
+
+then when all is created, execute the powershell script for the connection
+
+```powershell
+    powershell -ExecutionPolicy Bypass -File .\connection.ps1
+
+    #if an old key already exists, remove it
+    rm C:\Users\user\.ssh\id_rsa
+    #and execute the script again
+```
+
+And finally, execute the following commands to test if the eks cluster is working
+
+```
+export AWS_ACCESS_KEY_ID=xxx
+export AWS_SECRET_ACCESS_KEY=xxx
+export AWS_DEFAULT_REGION=xxx
+aws eks update-kubeconfig --name cheap-eks
+kubectl get nodes
+```
+
+![](./aws-images/6.png)
+
+If we try from our PC we will get timeout error
+
+![](./aws-images/7.png)
+
+
 
 
 

@@ -145,49 +145,36 @@ resource "aws_route_table_association" "vm_assoc" {
   route_table_id = aws_route_table.vm_rt.id
 }
 
+resource "aws_vpc_peering_connection_options" "eks_to_vm_options" {
+  vpc_peering_connection_id = aws_vpc_peering_connection.eks_to_vm.id
+
+  accepter {
+    allow_remote_vpc_dns_resolution = true
+  }
+
+  requester {
+    allow_remote_vpc_dns_resolution = true
+  }
+}
+
 resource "aws_instance" "example" {
   ami                         = data.aws_ami.example.id
   instance_type               = "t4g.nano"
   key_name                    = aws_key_pair.generated_key.key_name
-  vpc_security_group_ids      = [aws_security_group.allow_ssh.id, aws_security_group.vm_all_traffic_from_eks.id]
+  vpc_security_group_ids      = [
+    aws_security_group.allow_ssh.id,
+    aws_security_group.vm_all_traffic_from_eks.id
+  ]
   subnet_id                   = aws_subnet.vm_subnet.id
   associate_public_ip_address = true
 
-  instance_market_options {
-    market_type = "spot"
-    spot_options {
-      max_price = 0.002
-    }
-  }
-
-  user_data = <<-EOF
-              #!/bin/bash
-              yum update -y
-
-              # Install AWS CLI v2
-              curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "awscliv2.zip"
-              unzip awscliv2.zip
-              ./aws/install
-
-              # Install kubectl for ARM64 (latest stable)
-              KUBECTL_VERSION=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
-              curl -LO "https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/arm64/kubectl"
-              chmod +x kubectl
-              mv kubectl /usr/local/bin/kubectl
-              
-              # Install Docker
-              yum install -y docker
-              systemctl enable docker
-              systemctl start docker
-              usermod -aG docker ec2-user
-              # Reboot to apply Docker group membership
-              reboot
-            EOF
+  user_data = file("setup.sh")
 
   tags = {
     Name = "test-spot"
   }
 }
+
 # testing
 resource "aws_vpc" "main" {
   cidr_block           = "10.0.0.0/16"
@@ -298,13 +285,15 @@ resource "aws_eks_cluster" "eks" {
   name     = "cheap-eks"
   role_arn = aws_iam_role.eks_cluster.arn
 
+  depends_on = [aws_instance.example]
+
   version = "1.29"
 
   vpc_config {
     subnet_ids              = [aws_subnet.public_a.id, aws_subnet.public_b.id]
-    endpoint_public_access  = false
+    endpoint_public_access  = true
     endpoint_private_access = true
-    # no public_access_cidrs here
+    public_access_cidrs = ["${aws_instance.example.public_ip}/32"]
   }
 }
 
