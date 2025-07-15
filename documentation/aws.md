@@ -97,6 +97,10 @@ execute powershell script `connection.ps1`
 
 ```powershell
     powershell -ExecutionPolicy Bypass -File .\connection.ps1
+
+    #if an old key already exists, remove it
+    rm C:\Users\user\.ssh\id_rsa
+    #and execute the script again
 ```
 
 ![](./aws-images/4.png)
@@ -140,6 +144,28 @@ Explanation of the code:
 ```powershell
 
 aws eks --region eu-north-1 update-kubeconfig --name $(terraform output -raw cluster_name)
+
+```
+
+## final EKS 
+
+the objetive is to do the following:
+
+SSH into the VM (which is in vm_vpc).
+
+From that VM, you can use kubectl to access the EKS API endpoint.
+
+Your PC (outside that VPC CIDR) cannot connect directly to the API.
+
+You can create/manage K8s resources only from the VM or anything inside that VM VPC.
+
+for that, we use the resources that i created before, adding the peering between the 2 vpcs and SG to pass traffic between them
+
+```powershell
+
+terraform init
+terraform plan
+terraform apply -auto-approve
 
 ```
 
