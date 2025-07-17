@@ -1,26 +1,27 @@
 #!/bin/bash
+
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+set -x
 
-set -x  # Enable bash debug mode: print commands as they run
+echo "[+] Setting up jumpbox (offline install)"
 
-echo "[+] Setting up jumpbox (offline mode)"
-
-# Ensure bin directory exists
-mkdir -p /home/ec2-user/bin
 cd /home/ec2-user
+mkdir -p /home/ec2-user/bin
 
-# Install AWS CLI from local zip
-unzip -q bin/awscliv2.zip
-sudo ./aws/install
+# Extract binaries
+tar -xzvf offline_binaries.tar.gz -C /home/ec2-user
 
-# Install kubectl from local binary
-sudo chmod +x bin/kubectl
-sudo mv bin/kubectl /usr/local/bin/kubectl
+# Install all binaries
+cd /home/ec2-user/offline_bins
+for bin in *; do
+  sudo cp -v "$bin" /usr/local/bin/
+  sudo chmod +x /usr/local/bin/"$bin"
+done
 
-# Install Docker
-sudo yum install -y docker
-sudo systemctl enable docker
-sudo systemctl start docker
-sudo usermod -aG docker ec2-user
+# Setup Docker (minimal)
+sudo mkdir -p /etc/docker
+sudo systemctl enable docker || true
+sudo systemctl start docker || true
+sudo usermod -aG docker ec2-user || true
 
 echo "[+] Jumpbox setup complete"
