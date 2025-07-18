@@ -142,49 +142,49 @@ resource "aws_instance" "admin_vm" {
   associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.ssh_allow_all.id]
 
-  user_data = templatefile("${path.module}/setup_admin.sh", {
-    private_key = tls_private_key.example.private_key_pem,
-    jumpbox_ip  = aws_instance.eks_jumpbox.private_ip
-  })
+  # user_data = templatefile("${path.module}/setup_admin.sh", {
+  #   private_key = tls_private_key.example.private_key_pem,
+  #   jumpbox_ip  = aws_instance.eks_jumpbox.private_ip
+  # })
 
-  depends_on = [aws_instance.eks_jumpbox]
+#  depends_on = [aws_instance.eks_jumpbox]
 
   tags = {
     Name = "admin-vm"
   }
 
-  provisioner "file" {
-    source      = "${path.module}/setup_jumpbox.sh"
-    destination = "/home/ec2-user/setup_jumpbox.sh"
-    connection {
-      type        = "ssh"
-      user        = "ec2-user"
-      private_key = tls_private_key.example.private_key_pem
-      host        = self.public_ip
-    }
-  }
+  # provisioner "file" {
+  #   source      = "${path.module}/setup_jumpbox.sh"
+  #   destination = "/home/ec2-user/setup_jumpbox.sh"
+  #   connection {
+  #     type        = "ssh"
+  #     user        = "ec2-user"
+  #     private_key = tls_private_key.example.private_key_pem
+  #     host        = self.public_ip
+  #   }
+  # }
 
-  provisioner "file" {
-    source      = "${path.module}/bin/offline_binaries.tar.gz"
-    destination = "/home/ec2-user/offline_binaries.tar.gz"
-    connection {
-      type        = "ssh"
-      user        = "ec2-user"
-      private_key = tls_private_key.example.private_key_pem
-      host        = self.public_ip
-    }
-  }
+  # provisioner "file" {
+  #   source      = "${path.module}/bin/offline_binaries.tar.gz"
+  #   destination = "/home/ec2-user/offline_binaries.tar.gz"
+  #   connection {
+  #     type        = "ssh"
+  #     user        = "ec2-user"
+  #     private_key = tls_private_key.example.private_key_pem
+  #     host        = self.public_ip
+  #   }
+  # }
 }
 
-resource "aws_instance" "eks_jumpbox" {
-  ami                         = data.aws_ami.amazon_linux.id
-  instance_type               = "t4g.nano"
-  key_name                    = aws_key_pair.generated_key.key_name
-  subnet_id                   = aws_subnet.eks_subnet_a.id
-  associate_public_ip_address = false
-  vpc_security_group_ids      = [aws_security_group.eks_jumpbox_sg.id]
-  tags = { Name = "eks-jumpbox" }
-}
+# resource "aws_instance" "eks_jumpbox" {
+#   ami                         = data.aws_ami.amazon_linux.id
+#   instance_type               = "t4g.nano"
+#   key_name                    = aws_key_pair.generated_key.key_name
+#   subnet_id                   = aws_subnet.eks_subnet_a.id
+#   associate_public_ip_address = false
+#   vpc_security_group_ids      = [aws_security_group.eks_jumpbox_sg.id]
+#   tags = { Name = "eks-jumpbox" }
+# }
 
 # ------------ OUTPUTS ------------
 
@@ -192,9 +192,9 @@ output "admin_vm_public_ip" {
   value = aws_instance.admin_vm.public_ip
 }
 
-output "jumpbox_private_ip" {
-  value = aws_instance.eks_jumpbox.private_ip
-}
+# output "jumpbox_private_ip" {
+#   value = aws_instance.eks_jumpbox.private_ip
+# }
 
 output "private_key_pem" {
   value     = tls_private_key.example.private_key_pem
