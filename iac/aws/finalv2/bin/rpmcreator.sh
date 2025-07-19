@@ -1,64 +1,84 @@
 #!/bin/bash
-set -euxo pipefail
 
-DEST=~/offline_rpms
-mkdir -p "$DEST"
-cd "$DEST"
+set -e
 
-echo "[+] Checking and installing missing binaries..."
+RPM_DIR="$HOME/rpms"
+mkdir -p "$RPM_DIR"
 
-# List of binaries with their install package names (adjust package names if needed)
-declare -A BINARIES_PACKAGES=(
-  [aws]="awscli"
-  [kubectl]="kubectl"
-  [docker]="docker"
-  [dockerd]="docker"          # dockerd comes with docker package
-  [containerd]="containerd"
-  [helm]="helm"
-)
+echo "====== INSTALLATION VERIFICATION ======"
 
-# Map binary -> actual full path after which
-declare -A BINARIES_PATHS
+TOOLS=("aws" "kubectl" "docker" "dockerd" "containerd" "helm")
 
-for bin in "${!BINARIES_PACKAGES[@]}"; do
-  path=$(which "$bin" || echo "")
-  if [[ -z "$path" ]]; then
-    echo "[!] $bin not found, installing package ${BINARIES_PACKAGES[$bin]}..."
-    # Install the package; you might need sudo or root access
-    yum install -y "${BINARIES_PACKAGES[$bin]}"
-    # Re-run which after install
-    path=$(which "$bin" || echo "")
-    if [[ -z "$path" ]]; then
-      echo "[!] Failed to find $bin even after install, skipping."
-      continue
-    fi
+declare -A VERSION_CMDS
+VERSION_CMDS[aws]="aws --version"
+VERSION_CMDS[kubectl]="kubectl version --client"
+VERSION_CMDS[docker]="docker --version"
+VERSION_CMDS[dockerd]="dockerd --version"
+VERSION_CMDS[containerd]="containerd --version"
+VERSION_CMDS[helm]="helm version --short"
+
+declare -A BIN_PATHS
+declare -A VERSIONS
+
+for tool in "${TOOLS[@]}"; do
+  echo -e "\n🔍 Checking: $tool"
+
+  BIN_PATH=$(command -v "$tool" || true)
+
+  if [[ -z "$BIN_PATH" ]]; then
+    echo "  ✗ $tool is NOT in PATH"
+    continue
   fi
-  BINARIES_PATHS[$bin]=$path
-done
 
-echo "[+] Packaging installed binaries..."
+  echo "  ✓ Path: $BIN_PATH"
+  VERSION_RAW=$(${VERSION_CMDS[$tool]} 2>/dev/null || echo "Error")
+  echo "  ✓ Version: $VERSION_RAW"
 
-get_version() {
-  case "$1" in
-    aws) aws --version 2>&1 | awk '{print $1}' | cut -d/ -f2 ;;
-    kubectl) kubectl version --client --short 2>/dev/null | awk '{print $3}' | sed 's/^v//' ;;
-    docker) docker --version | awk '{print $3}' | sed 's/,//' ;;
-    dockerd) dockerd --version | awk '{print $3}' | sed 's/,//' ;;
-    containerd) containerd --version | awk '{print $3}' ;;
-    helm) helm version --short | sed 's/^v//' | cut -d+ -f1 ;;
-    *) echo "1.0" ;;
+  VERSION=""
+  case $tool in
+    aws)
+      VERSION=$(echo "$VERSION_RAW" | awk '{print $1}' | cut -d/ -f2)
+      ;;
+    kubectl)
+      VERSION=$(echo "$VERSION_RAW" | grep -oP 'Client Version: v\K[0-9.]+' || true)
+      ;;
+    docker|dockerd)
+      VERSION=$(echo "$VERSION_RAW" | grep -oP 'version \K[0-9.]+' | head -1)
+      ;;
+    containerd)
+      VERSION=$(echo "$VERSION_RAW" | grep -oP 'v[0-9]+\.[0-9]+\.[0-9]+' | tr -d 'v' | head -1)
+      ;;
+    helm)
+      VERSION=$(echo "$VERSION_RAW" | grep -oP '^v\K[0-9.]+' | head -1)
+      ;;
   esac
-}
 
-for name in "${!BINARIES_PATHS[@]}"; do
-  bin_path="${BINARIES_PATHS[$name]}"
-  if [[ -x "$bin_path" ]]; then
-    version=$(get_version "$name" || echo "1.0")
-    echo "[+] Packaging $name ($version) from $bin_path..."
-    fpm -s dir -t rpm -n "$name" -v "$version" --prefix=/usr/bin "$bin_path"
-  else
-    echo "[!] $name binary not executable at $bin_path, skipping."
+  if [[ -z "$VERSION" ]]; then
+    echo "  ✗ Failed to extract version for $tool"
+    continue
   fi
+
+  BIN_PATHS["$tool"]="$BIN_PATH"
+  VERSIONS["$tool"]="$VERSION"
 done
 
-echo "[✓] All available binaries packaged as RPMs in: $DEST"
+echo -e "\n====== RPM PACKAGING FOR INSTALLED BINARIES ======"
+
+for tool in "${!BIN_PATHS[@]}"; do
+  BIN="${BIN_PATHS[$tool]}"
+  VER="${VERSIONS[$tool]}"
+  PKG_NAME="$RPM_DIR/${tool}-${VER}.rpm"
+
+  echo -e "\n🔍 Processing $tool..."
+  echo "  ✓ Version: $VER"
+  echo "  ➤ Building RPM: $PKG_NAME"
+
+  fpm -s dir -t rpm \
+    -n "$tool" \
+    -v "$VER" \
+    --prefix /usr/bin \
+    --package "$PKG_NAME" \
+    "$BIN"="/usr/bin/$tool"
+done
+
+echo -e "\n✅ RPM build complete."

@@ -153,16 +153,16 @@ resource "aws_instance" "admin_vm" {
     Name = "admin-vm"
   }
 
-  # provisioner "file" {
-  #   source      = "${path.module}/setup_jumpbox.sh"
-  #   destination = "/home/ec2-user/setup_jumpbox.sh"
-  #   connection {
-  #     type        = "ssh"
-  #     user        = "ec2-user"
-  #     private_key = tls_private_key.example.private_key_pem
-  #     host        = self.public_ip
-  #   }
-  # }
+  provisioner "file" {
+    source      = "${path.module}/bin/rpminstaller.sh"
+    destination = "/home/ec2-user/rpminstaller.sh"
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      private_key = tls_private_key.example.private_key_pem
+      host        = self.public_ip
+    }
+  }
 
   # provisioner "file" {
   #   source      = "${path.module}/bin/offline_binaries.tar.gz"
