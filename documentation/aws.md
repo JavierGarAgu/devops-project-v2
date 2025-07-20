@@ -198,6 +198,42 @@ If we try from our PC we will get timeout error
 
 ![](./aws-images/7.png)
 
+## final v2
+
+
+We are automatizating the installation of the binaries via rpm, but first we need to know how to create the installators
+
+fpm is the builder that we are going to use, to use fpm to create RPM packages, you need to install several components:
+
+```bash
+sudo dnf install -y ruby ruby-devel gcc make rpm-build
+sudo dnf groupinstall -y "Development Tools"
+sudo gem install --no-document fpm
+```
+
+First, Ruby is required because fpm is written in Ruby. The ruby package installs the interpreter needed to run Ruby programs. The ruby-devel package provides the development headers required when installing Ruby gems that include native extensions.
+
+Next, you need some compilation tools. gcc and make are standard tools for compiling code, and some of the Ruby gems used by fpm depend on native code that must be compiled during installation.
+
+The rpm-build package provides the core utilities needed to actually build RPM packages. Without this, fpm wouldn’t be able to create .rpm files.
+
+You also need to install the “Development Tools” group using dnf groupinstall. This installs a collection of common tools and libraries that are useful for building software, and they help prevent missing dependency errors when building or installing software from source.
+
+Finally, once all dependencies are in place, you install fpm itself using the RubyGems package manager with gem install fpm. The --no-document flag skips installing documentation to speed up the process.
+
+Altogether, these steps set up your system to use fpm for packaging binaries into RPM files.
+
+tarball binaries:
+
+tar czf rpms.tar.gz -C $HOME rpms
+
+untar
+
+tar -xzf rpms.tar.gz -C $HOME
+
+
+
+
 
 
 

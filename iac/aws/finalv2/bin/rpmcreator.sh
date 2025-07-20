@@ -46,7 +46,7 @@ for tool in "${TOOLS[@]}"; do
       VERSION=$(echo "$VERSION_RAW" | grep -oP 'version \K[0-9.]+' | head -1)
       ;;
     containerd)
-      VERSION=$(echo "$VERSION_RAW" | grep -oP 'v[0-9]+\.[0-9]+\.[0-9]+' | tr -d 'v' | head -1)
+      VERSION=$(echo "$VERSION_RAW" | grep -oP '\b[0-9]+\.[0-9]+\.[0-9]+\b' | head -1)
       ;;
     helm)
       VERSION=$(echo "$VERSION_RAW" | grep -oP '^v\K[0-9.]+' | head -1)
@@ -73,12 +73,32 @@ for tool in "${!BIN_PATHS[@]}"; do
   echo "  ✓ Version: $VER"
   echo "  ➤ Building RPM: $PKG_NAME"
 
-  fpm -s dir -t rpm \
-    -n "$tool" \
-    -v "$VER" \
-    --prefix /usr/bin \
-    --package "$PKG_NAME" \
-    "$BIN"="/usr/bin/$tool"
+  if [[ "$tool" == "aws" ]]; then
+    # Attempt to locate the full AWS CLI installation directory
+    AWS_LIB_DIR=$(rpm -ql awscli 2>/dev/null | grep '/usr/lib/aws-cli' | head -1 | cut -d/ -f1-5)
+    if [[ -z "$AWS_LIB_DIR" ]]; then
+      AWS_LIB_DIR="/usr/lib/aws-cli"
+    fi
+
+    if [[ -d "$AWS_LIB_DIR" ]]; then
+      fpm -s dir -t rpm \
+        -n "$tool" \
+        -v "$VER" \
+        --package "$PKG_NAME" \
+        "$BIN"="/usr/bin/aws" \
+        "$AWS_LIB_DIR"="/usr/lib/aws-cli"
+    else
+      echo "  ✗ Could not locate AWS CLI lib dir. Skipping."
+      continue
+    fi
+
+  else
+    fpm -s dir -t rpm \
+      -n "$tool" \
+      -v "$VER" \
+      --package "$PKG_NAME" \
+      "$BIN"="/usr/bin/$tool"
+  fi
 done
 
 echo -e "\n✅ RPM build complete."
