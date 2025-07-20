@@ -154,8 +154,8 @@ resource "aws_instance" "admin_vm" {
   }
 
   provisioner "file" {
-    source      = "${path.module}/bin/rpminstaller.sh"
-    destination = "/home/ec2-user/rpminstaller.sh"
+    source      = "${path.module}/bin/rpmcreator.sh"
+    destination = "/home/ec2-user/rpmcreator.sh"
     connection {
       type        = "ssh"
       user        = "ec2-user"
@@ -164,16 +164,16 @@ resource "aws_instance" "admin_vm" {
     }
   }
 
-  # provisioner "file" {
-  #   source      = "${path.module}/bin/offline_binaries.tar.gz"
-  #   destination = "/home/ec2-user/offline_binaries.tar.gz"
-  #   connection {
-  #     type        = "ssh"
-  #     user        = "ec2-user"
-  #     private_key = tls_private_key.example.private_key_pem
-  #     host        = self.public_ip
-  #   }
-  # }
+  provisioner "file" {
+    source      = "${path.module}/bin/installer.sh"
+    destination = "/home/ec2-user/installer.sh"
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      private_key = tls_private_key.example.private_key_pem
+      host        = self.public_ip
+    }
+  }
 }
 
 # resource "aws_instance" "eks_jumpbox" {
