@@ -154,8 +154,8 @@ resource "aws_instance" "admin_vm" {
   }
 
   provisioner "file" {
-    source      = "${path.module}/bin/rpmcreator.sh"
-    destination = "/home/ec2-user/rpmcreator.sh"
+    source      = "${path.module}/bin/rpminstaller.sh"
+    destination = "/home/ec2-user/rpminstaller.sh"
     connection {
       type        = "ssh"
       user        = "ec2-user"
@@ -165,8 +165,19 @@ resource "aws_instance" "admin_vm" {
   }
 
   provisioner "file" {
-    source      = "${path.module}/bin/installer.sh"
-    destination = "/home/ec2-user/installer.sh"
+    source      = "${path.module}/bin/rpms.tar.gz"
+    destination = "/home/ec2-user/rpms.tar.gz"
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      private_key = tls_private_key.example.private_key_pem
+      host        = self.public_ip
+    }
+  }
+
+  provisioner "file" {
+    source      = "${path.module}/bin/unistall.sh"
+    destination = "/home/ec2-user/unistall.sh"
     connection {
       type        = "ssh"
       user        = "ec2-user"

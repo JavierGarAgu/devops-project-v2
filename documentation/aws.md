@@ -231,6 +231,26 @@ untar
 
 tar -xzf rpms.tar.gz -C $HOME
 
+aws special case
+
+aws have manny packages, so, to debug we use this command
+
+```bash
+# to know where is it the binary of aws
+which aws
+# to know the full name of the package of binaries made by aws
+rpm -qf /usr/bin/aws
+# to know all the binaries related with aws
+rpm -ql awscli-2-2.25.0-1.amzn2023.0.1.noarch | head -n 200
+# unistall a package or binary
+rpm -e aws
+```
+
+with this information, we can create the rpm with all the necesary content using the script called `awsrpmcreator.sh` located in `/iac/aws/finalv2/bin`
+
+
+
+
 
 
 
