@@ -7,10 +7,9 @@ mkdir -p "$RPM_DIR"
 
 echo "====== INSTALLATION VERIFICATION ======"
 
-TOOLS=("aws" "kubectl" "docker" "dockerd" "containerd" "helm")
+TOOLS=("kubectl" "docker" "dockerd" "containerd" "helm")
 
 declare -A VERSION_CMDS
-VERSION_CMDS[aws]="aws --version"
 VERSION_CMDS[kubectl]="kubectl version --client"
 VERSION_CMDS[docker]="docker --version"
 VERSION_CMDS[dockerd]="dockerd --version"
@@ -36,9 +35,6 @@ for tool in "${TOOLS[@]}"; do
 
   VERSION=""
   case $tool in
-    aws)
-      VERSION=$(echo "$VERSION_RAW" | awk '{print $1}' | cut -d/ -f2)
-      ;;
     kubectl)
       VERSION=$(echo "$VERSION_RAW" | grep -oP 'Client Version: v\K[0-9.]+' || true)
       ;;
@@ -73,32 +69,11 @@ for tool in "${!BIN_PATHS[@]}"; do
   echo "  ✓ Version: $VER"
   echo "  ➤ Building RPM: $PKG_NAME"
 
-  if [[ "$tool" == "aws" ]]; then
-    # Attempt to locate the full AWS CLI installation directory
-    AWS_LIB_DIR=$(rpm -ql awscli 2>/dev/null | grep '/usr/lib/aws-cli' | head -1 | cut -d/ -f1-5)
-    if [[ -z "$AWS_LIB_DIR" ]]; then
-      AWS_LIB_DIR="/usr/lib/aws-cli"
-    fi
-
-    if [[ -d "$AWS_LIB_DIR" ]]; then
-      fpm -s dir -t rpm \
-        -n "$tool" \
-        -v "$VER" \
-        --package "$PKG_NAME" \
-        "$BIN"="/usr/bin/aws" \
-        "$AWS_LIB_DIR"="/usr/lib/aws-cli"
-    else
-      echo "  ✗ Could not locate AWS CLI lib dir. Skipping."
-      continue
-    fi
-
-  else
-    fpm -s dir -t rpm \
-      -n "$tool" \
-      -v "$VER" \
-      --package "$PKG_NAME" \
-      "$BIN"="/usr/bin/$tool"
-  fi
+  fpm -s dir -t rpm \
+    -n "$tool" \
+    -v "$VER" \
+    --package "$PKG_NAME" \
+    "$BIN"="/usr/bin/$tool"
 done
 
 echo -e "\n✅ RPM build complete."
