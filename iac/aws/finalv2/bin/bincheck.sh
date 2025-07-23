@@ -25,4 +25,4 @@ check_tool "dockerd" "dockerd --version"
 check_tool "containerd" "containerd --version"
 check_tool "helm" "helm version --short"
 
-echo -e "\n✅ All checks complete."
+echo -e "\nAll checks complete."
