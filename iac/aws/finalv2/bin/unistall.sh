@@ -18,6 +18,6 @@ for tool in "${TOOLS[@]}"; do
     echo "$tool not installed"
   else
     echo "$tool: binary at $BIN_PATH is owned by package $PKG_NAME UNISTALLING"
-    sudo rpm -e "$PKG_NAME"
+    sudo rpm -e --nodeps "$PKG_NAME"
   fi
 done
