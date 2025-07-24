@@ -25,6 +25,26 @@ while [ ! -f /home/ec2-user/rpms.tar.gz ]; do
   sleep 1
 done
 
+stable_count=0
+last_size=0
+
+while true; do
+  current_size=$(ls -l /home/ec2-user/rpms.tar.gz | awk '{print $5}')
+
+  if [[ "$current_size" == "$last_size" ]]; then
+    ((stable_count++))
+  else
+    stable_count=0
+  fi
+
+  if [[ "$stable_count" -ge 3 ]]; then
+    break
+  fi
+
+  last_size=$current_size
+  sleep 1
+done
+
 # Transfer files
 scp -o StrictHostKeyChecking=no -i /home/ec2-user/jumpbox.pem /home/ec2-user/setup_jumpbox.sh ec2-user@"${jumpbox_ip}":/home/ec2-user/
 scp -o StrictHostKeyChecking=no -i /home/ec2-user/jumpbox.pem /home/ec2-user/rpms.tar.gz ec2-user@"${jumpbox_ip}":/home/ec2-user/
