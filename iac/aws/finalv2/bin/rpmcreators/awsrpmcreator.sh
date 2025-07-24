@@ -38,12 +38,20 @@ cp /usr/share/bash-completion/completions/aws "$BUILD_DIR/usr/share/bash-complet
 cp -r /usr/share/doc/awscli-2 "$BUILD_DIR/usr/share/doc/"
 cp /usr/share/zsh/site-functions/_awscli "$BUILD_DIR/usr/share/zsh/site-functions/"
 
-# Build RPM using fpm
+# Build RPM using fpm with runtime dependencies
 fpm -s dir -t rpm \
   -n "$PKG_NAME" \
   -v "$VERSION" \
   -C "$BUILD_DIR" \
   --prefix / \
-  --package "$RPM_DIR/${PKG_NAME}-${VERSION}.rpm"
+  --package "$RPM_DIR/${PKG_NAME}-${VERSION}.rpm" \
+  --depends "python${PYTHON_VER}" \
+  --depends "python${PYTHON_VER}-botocore" \
+  --depends "python${PYTHON_VER}-s3transfer" \
+  --depends "python${PYTHON_VER}-dateutil" \
+  --depends "python${PYTHON_VER}-urllib3" \
+  --depends "python${PYTHON_VER}-pyyaml" \
+  --depends "python${PYTHON_VER}-rsa" \
+  --depends "python${PYTHON_VER}-colorama"
 
-echo -e "\n RPM built at: $RPM_DIR/${PKG_NAME}-${VERSION}.rpm"
+echo -e "\n✅ RPM built at: $RPM_DIR/${PKG_NAME}-${VERSION}.rpm"

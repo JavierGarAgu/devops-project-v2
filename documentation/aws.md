@@ -206,9 +206,13 @@ We are automatizating the installation of the binaries via rpm, but first we nee
 fpm is the builder that we are going to use, to use fpm to create RPM packages, you need to install several components:
 
 ```bash
+sudo yum install nano -y
+mkdir docker-rpm-build
 sudo dnf install -y ruby ruby-devel gcc make rpm-build
 sudo dnf groupinstall -y "Development Tools"
 sudo gem install --no-document fpm
+cd docker-rpm-build
+nano create.sh
 ```
 
 First, Ruby is required because fpm is written in Ruby. The ruby package installs the interpreter needed to run Ruby programs. The ruby-devel package provides the development headers required when installing Ruby gems that include native extensions.

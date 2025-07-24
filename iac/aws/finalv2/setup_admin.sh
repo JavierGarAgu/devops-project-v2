@@ -8,26 +8,6 @@ private_key="__PRIVATE_KEY__"
 
 echo "Using jumpbox IP: ${jumpbox_ip}" >> /home/ec2-user/debug.txt
 
-# Create working directory
-cd /home/ec2-user
-mkdir -p /home/ec2-user/bin
-
-# Extract offline binaries
-tar -xzvf offline_binaries.tar.gz -C /home/ec2-user
-
-# Install binaries to /usr/local/bin
-cd /home/ec2-user/offline_bins
-for bin in *; do
-  sudo cp -v "$bin" /usr/local/bin/
-  sudo chmod +x /usr/local/bin/"$bin"
-done
-
-# Setup minimal Docker (dockerd might still require manual start if no systemd config)
-sudo mkdir -p /etc/docker
-sudo systemctl enable docker || true
-sudo systemctl start docker || true
-sudo usermod -aG docker ec2-user || true
-
 # Save the private key
 echo "${private_key}" > /home/ec2-user/jumpbox.pem
 chmod 600 /home/ec2-user/jumpbox.pem
@@ -40,9 +20,25 @@ for i in {1..30}; do
   sleep 10
 done
 
+while [ ! -f /home/ec2-user/rpms.tar.gz ]; do
+  echo "Waiting for rpms.tar.gz to be available..."
+  sleep 1
+done
+
 # Transfer files
 scp -o StrictHostKeyChecking=no -i /home/ec2-user/jumpbox.pem /home/ec2-user/setup_jumpbox.sh ec2-user@"${jumpbox_ip}":/home/ec2-user/
-scp -o StrictHostKeyChecking=no -i /home/ec2-user/jumpbox.pem /home/ec2-user/offline_binaries.tar.gz ec2-user@"${jumpbox_ip}":/home/ec2-user/
+scp -o StrictHostKeyChecking=no -i /home/ec2-user/jumpbox.pem /home/ec2-user/rpms.tar.gz ec2-user@"${jumpbox_ip}":/home/ec2-user/
+
+# Wait until rpms.tar.gz is fully present on remote system
+echo "Waiting for rpms.tar.gz to appear on remote host..."
+while true; do
+  local_size=$(ls -l /home/ec2-user/rpms.tar.gz | awk '{print $5}')
+  remote_size=$(ssh -o StrictHostKeyChecking=no -i /home/ec2-user/jumpbox.pem ec2-user@"${jumpbox_ip}" "ls -l /home/ec2-user/rpms.tar.gz 2>/dev/null | awk '{print \$5}'")
+  if [[ "$remote_size" == "$local_size" && -n "$remote_size" ]]; then
+    break
+  fi
+  sleep 1
+done
 
 # Execute remote setup
 ssh -o StrictHostKeyChecking=no -i /home/ec2-user/jumpbox.pem ec2-user@"${jumpbox_ip}" "chmod +x /home/ec2-user/setup_jumpbox.sh && sudo bash /home/ec2-user/setup_jumpbox.sh"

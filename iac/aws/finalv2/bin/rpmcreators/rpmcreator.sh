@@ -7,13 +7,10 @@ mkdir -p "$RPM_DIR"
 
 echo "====== INSTALLATION VERIFICATION ======"
 
-TOOLS=("kubectl" "docker" "dockerd" "containerd" "helm")
+TOOLS=("kubectl" "helm")
 
 declare -A VERSION_CMDS
 VERSION_CMDS[kubectl]="kubectl version --client"
-VERSION_CMDS[docker]="docker --version"
-VERSION_CMDS[dockerd]="dockerd --version"
-VERSION_CMDS[containerd]="containerd --version"
 VERSION_CMDS[helm]="helm version --short"
 
 declare -A BIN_PATHS
@@ -37,12 +34,6 @@ for tool in "${TOOLS[@]}"; do
   case $tool in
     kubectl)
       VERSION=$(echo "$VERSION_RAW" | grep -oP 'Client Version: v\K[0-9.]+' || true)
-      ;;
-    docker|dockerd)
-      VERSION=$(echo "$VERSION_RAW" | grep -oP 'version \K[0-9.]+' | head -1)
-      ;;
-    containerd)
-      VERSION=$(echo "$VERSION_RAW" | grep -oP '\b[0-9]+\.[0-9]+\.[0-9]+\b' | head -1)
       ;;
     helm)
       VERSION=$(echo "$VERSION_RAW" | grep -oP '^v\K[0-9.]+' | head -1)

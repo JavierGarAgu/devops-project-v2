@@ -5,23 +5,32 @@ set -x
 
 echo "[+] Setting up jumpbox (offline install)"
 
-cd /home/ec2-user
-mkdir -p /home/ec2-user/bin
+JUMPDIR="/home/ec2-user"
 
 # Extract binaries
-tar -xzvf offline_binaries.tar.gz -C /home/ec2-user
+tar -xzvf rpms.tar.gz -C $JUMPDIR
 
-# Install all binaries
-cd /home/ec2-user/offline_bins
-for bin in *; do
-  sudo cp -v "$bin" /usr/local/bin/
-  sudo chmod +x /usr/local/bin/"$bin"
+RPM_DIR="$JUMPDIR/rpms"
+
+if [[ ! -d "$RPM_DIR" ]]; then
+  echo "Directory $RPM_DIR does not exist."
+  exit 1
+fi
+
+echo "Installing all RPM packages from $RPM_DIR..."
+
+for rpm in "$RPM_DIR"/*.rpm; do
+  if [[ -f "$rpm" ]]; then
+    echo "Installing $rpm..."
+    sudo dnf install -y "$rpm" || {
+      echo "Failed to install $rpm"
+      exit 1
+    }
+  else
+    echo "No RPM files found in $RPM_DIR."
+  fi
 done
 
-# Setup Docker (minimal)
-sudo mkdir -p /etc/docker
-sudo systemctl enable docker || true
-sudo systemctl start docker || true
-sudo usermod -aG docker ec2-user || true
+echo "All RPM packages installed."
 
 echo "[+] Jumpbox setup complete"

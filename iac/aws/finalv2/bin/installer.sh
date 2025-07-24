@@ -26,6 +26,7 @@ fi
 echo "[+] Installing kubectl..."
 if ! command -v kubectl &> /dev/null; then
   KUBECTL_VERSION="v1.30.1"
+  ARCH="arm64"
   curl -Lo kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl"
   chmod +x kubectl
   sudo mv kubectl /usr/local/bin/kubectl
