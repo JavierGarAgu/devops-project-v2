@@ -200,6 +200,10 @@ If we try from our PC we will get timeout error
 
 ## final v2
 
+Now the terraform infraestructure created is more complex, so lets analyze the terraform file for understand what we are creating
+
+
+
 
 We are automatizating the installation of the binaries via rpm, but first we need to know how to create the installators
 

@@ -19,6 +19,8 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+data "aws_region" "current" {}
+
 data "aws_ami" "amazon_linux" {
   most_recent = true
   owners      = ["amazon"]
@@ -145,21 +147,14 @@ resource "aws_security_group" "ssh_allow_all" {
 
 resource "aws_security_group" "eks_jumpbox_sg" {
   name        = "jumpbox-sg"
-  description = "Allow SSH and HTTPS from VPC"
+  description = "Allow ALL from anywhere for testing"
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
-  }
-
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -240,14 +235,14 @@ resource "aws_eks_cluster" "main" {
 
 locals {
   interface_services = [
-    "com.amazonaws.eu-north-1.eks",
-    "com.amazonaws.eu-north-1.eks-auth",
-    "com.amazonaws.eu-north-1.ec2",
-    "com.amazonaws.eu-north-1.sts",
-    "com.amazonaws.eu-north-1.logs",
-    "com.amazonaws.eu-north-1.ecr.api",
-    "com.amazonaws.eu-north-1.ecr.dkr",
-    "com.amazonaws.eu-north-1.elasticloadbalancing"
+    "eks",
+    "eks-auth",
+    "ec2",
+    "sts",
+    "logs",
+    "ecr.api",
+    "ecr.dkr",
+    "elasticloadbalancing"
   ]
 }
 
@@ -255,7 +250,7 @@ resource "aws_vpc_endpoint" "interface_endpoints" {
   for_each = toset(local.interface_services)
 
   vpc_id              = aws_vpc.main.id
-  service_name        = each.key
+  service_name        = "com.amazonaws.${data.aws_region.current.name}.${each.key}"
   vpc_endpoint_type   = "Interface"
   subnet_ids          = [aws_subnet.eks_subnet_a.id, aws_subnet.eks_subnet_b.id]
   security_group_ids  = [aws_security_group.eks_jumpbox_sg.id]
