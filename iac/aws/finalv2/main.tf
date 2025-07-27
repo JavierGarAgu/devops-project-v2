@@ -235,7 +235,7 @@ resource "aws_eks_cluster" "main" {
       aws_subnet.eks_subnet_b.id
     ]
     endpoint_private_access = true
-    endpoint_public_access  = false
+    endpoint_public_access  = true
   }
 
   depends_on = [aws_iam_role_policy_attachment.eks_cluster_role_attach]
