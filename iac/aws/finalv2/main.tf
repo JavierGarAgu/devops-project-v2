@@ -164,6 +164,14 @@ resource "aws_security_group" "eks_jumpbox_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    description = "Allow HTTPS from jumpbox subnet"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.2.0/24"]
+  }
+
   tags = { Name = "jumpbox-sg" }
 }
 
@@ -252,7 +260,10 @@ resource "aws_vpc_endpoint" "interface_endpoints" {
   vpc_id              = aws_vpc.main.id
   service_name        = "com.amazonaws.${data.aws_region.current.name}.${each.key}"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = [aws_subnet.eks_subnet_a.id, aws_subnet.eks_subnet_b.id]
+  subnet_ids          = [
+    aws_subnet.eks_subnet_a.id,
+    aws_subnet.eks_subnet_b.id
+  ]
   security_group_ids  = [aws_security_group.eks_jumpbox_sg.id]
   private_dns_enabled = true
   tags = {
@@ -310,6 +321,65 @@ resource "aws_instance" "admin_vm" {
     }
   }
 }
+
+resource "aws_security_group_rule" "allow_jumpbox_to_eks_cluster" {
+  description              = "Allow HTTPS from jumpbox to EKS cluster SG"
+  type                     = "ingress"
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  security_group_id        = aws_eks_cluster.main.vpc_config[0].cluster_security_group_id
+  source_security_group_id = aws_security_group.eks_jumpbox_sg.id
+}
+
+provider "kubernetes" {
+  host                   = aws_eks_cluster.main.endpoint
+  cluster_ca_certificate = base64decode(aws_eks_cluster.main.certificate_authority[0].data)
+  
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args        = [
+      "eks",
+      "get-token",
+      "--cluster-name",
+      aws_eks_cluster.main.name,
+    ]
+  }
+}
+
+data "aws_iam_role" "jumpbox_role" {
+  name = aws_iam_role.jumpbox_role.name
+}
+
+resource "kubernetes_config_map" "aws_auth" {
+  metadata {
+    name      = "aws-auth"
+    namespace = "kube-system"
+  }
+
+  data = {
+    mapRoles = yamlencode([
+      {
+        rolearn  = aws_iam_role.eks_cluster_role.arn
+        username = "eks-cluster"
+        groups   = ["system:masters"]
+      },
+      {
+        rolearn  = data.aws_iam_role.jumpbox_role.arn
+        username = "jumpbox"
+        groups   = ["system:masters"]  # you can limit permissions here if you want
+      }
+    ])
+  }
+  
+  depends_on = [
+    aws_eks_cluster.main,
+    aws_iam_role.jumpbox_role
+  ]
+}
+
+
 
 output "admin_vm_public_ip" {
   value = aws_instance.admin_vm.public_ip

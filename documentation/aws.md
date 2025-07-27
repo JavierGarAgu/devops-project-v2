@@ -256,7 +256,9 @@ rpm -e aws
 
 with this information, we can create the rpm with all the necesary content using the script called `awsrpmcreator.sh` located in `/iac/aws/finalv2/bin`
 
+Thanks to https://www.intelligentdiscovery.io/controls/eks/eks-inbound-port-443 for help me to solve the eks problem
 
+remember for myself to put first public endpoint of eks in public and when all is created put it in private
 
 
 
