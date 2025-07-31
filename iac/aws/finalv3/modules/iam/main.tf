@@ -1,3 +1,7 @@
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role
+
+
+
 resource "aws_iam_role" "eks_cluster_role" {
   name = "eksClusterRole"
   assume_role_policy = jsonencode({

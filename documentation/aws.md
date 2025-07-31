@@ -250,7 +250,74 @@ Creates the following roles:
     - `AmazonEKSWorkerNodePolicy`  
     - `AmazonEKSVPCResourceController`
 
-    
+
+Lets explain the [IAM module](../iac/aws/finalv3/modules/iam/main.tf) with [terraform guide](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role)
+
+
+First of all, we are going to create iam roles, not iam users, the reason is because 
+user and roles use policies for authorization. Keep in mind that user and role can't do anything until you allow certain actions with a policy.
+
+Answer the following questions and you will differentiate between a user and a role:
+
+Can have a password? Yes-> user, No-> role
+Can have an access key? Yes-> user, No-> role
+Can belong to a group? Yes-> user, No -> role
+Can be associated with AWS resources (for example EC2 instances)? No-> user, Yes->role
+
+this explanation is extracted from [stackoverflow](https://stackoverflow.com/a/48182754)
+
+Okay, so, we are going to use EC2 instances so thats the reason about why iam role and not iam user
+
+The resource `aws_iam_role` is composed with the following content:
+
+```terraform
+resource "aws_iam_role" "eks_cluster_role" {
+  name = "eksClusterRole"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Principal = { Service = "eks.amazonaws.com" },
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+```
+
+there can be more options, but lets focus with the basic:
+
+Name: to clasify the role with a name
+
+[assume_role_policy](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-service.html): (Required) Policy that grants an entity permission to assume the role, the entity is the resource from aws that we are configuring to bring access or privileges
+
+We always have `Version`, `Statement` and inside `Statement`: `Effect`, `Action` and `Resource`
+
+
+Version
+- Always "2012-10-17" for IAM policies.
+- It is the version of the policy language.
+- This field is required.
+
+Statement
+- An array of one or more permission statements.
+- Each statement includes the effect, principal, and actions.
+
+Effect
+- Can be either "Allow" or "Deny".
+- In trust policies, it is usually "Allow" to permit the specified principal to assume the role.
+
+Principal
+- Specifies who can assume the role.
+- Can be a service (e.g., "eks.amazonaws.com") or an AWS account/user/role.
+- This field is essential because it links the role to a trusted entity.
+
+Action
+- Must be "sts:AssumeRole" in trust policies.
+- Grants the specified principal permission to assume the role using AWS STS (Security Token Service).
+
+Resource
+- Not used in trust (assume role) policies.
+- The resource is implicitly the role to which the trust policy is attached.
 
 
 
