@@ -319,6 +319,46 @@ Resource
 - Not used in trust (assume role) policies.
 - The resource is implicitly the role to which the trust policy is attached.
 
+Then when we have defined the roles, now we need to attach them with a IAM Policy:
+
+```terraform
+resource "aws_iam_role_policy_attachment" "eks_cluster" {
+  role       = aws_iam_role.jumpbox_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+}
+```
+
+This resource only have two arguments, and all are Required, the argument `role` that reference the name of the IAM role, and the `policy_arn` that refers to the [Amazon Resource Name](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference-arns.html) that uniquely identifies the policy, in this case it refers to the [AmazonEKSClusterPolicy](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AmazonEKSClusterPolicy.html)
+
+Finally we use an [IAM Instance Profile](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html) to pass an IAM role to an EC2 instance.
+
+```terraform
+resource "aws_iam_instance_profile" "jumpbox_profile" {
+  name = "jumpboxInstanceProfile"
+  role = aws_iam_role.jumpbox_role.name
+}
+```
+
+we can see another options in the [terraform documentation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_instance_profile)
+
+We have 3 outputs:
+
+```terraform
+output "eks_cluster_role_arn" {
+  value = aws_iam_role.eks_cluster_role.arn
+}
+
+output "jumpbox_role_arn" {
+  value = aws_iam_role.jumpbox_role.arn
+}
+
+output "jumpbox_profile" {
+  value = aws_iam_instance_profile.jumpbox_profile.name
+}
+```
+
+
+
 
 
 
