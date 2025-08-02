@@ -221,11 +221,13 @@ kubectl get nodes
 kubectl get svc
 ```
 
-TODO: Explain all
+The objetive of the finalv3 is to create the following AWS infraestructure
 
----
+![](./aws-images/9.png)
 
 The final v3 code is composed of 5 modules:
+
+![](./aws-images/8.png)
 
 ### Compute Module:
 Creates the admin VM and jumpbox VM with the SSH keys.
