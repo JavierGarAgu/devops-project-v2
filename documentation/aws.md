@@ -229,8 +229,31 @@ The final v3 code is composed of 5 modules:
 
 ![](./aws-images/8.png)
 
+And the flow between then is the following:
+
+![](./aws-images/10.png)
+
+The deployment starts with module.network and module.iam, which are independent and run in parallel.
+
+The module.security depends on the network module and is created next. Then, module.eks is deployed, relying on both the IAM and security modules. Following that, module.compute depends on the EKS module and is created.
+
+Simultaneously, module.endpoints depends on the network module. Finally, all outputs are generated after the compute module completes.
+
+Now lets see all the modules one by one:
+
+
+
 ### Compute Module:
 Creates the admin VM and jumpbox VM with the SSH keys.
+
+![](./aws-images/12.png)
+
+We are using [aws_ami data source](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/ami) to get the ID of Amazon Linux OS to use it in the [EC2 creations](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance)
+
+
+
+
+
 
 ### Endpoints:
 Creates valid endpoints for the jumpbox to reach AWS services (necessary to use `aws eks get-token`).
@@ -252,6 +275,7 @@ Creates the following roles:
     - `AmazonEKSWorkerNodePolicy`  
     - `AmazonEKSVPCResourceController`
 
+![](./aws-images/11.png)
 
 Lets explain the [IAM module](../iac/aws/finalv3/modules/iam/main.tf) with [terraform guide](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role)
 
