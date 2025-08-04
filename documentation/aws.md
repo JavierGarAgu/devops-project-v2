@@ -251,12 +251,50 @@ Creates the admin VM and jumpbox VM with the SSH keys.
 We are using [aws_ami data source](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/ami) to get the ID of Amazon Linux OS to use it in the [EC2 creations](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance)
 
 
-
-
-
-
 ### Endpoints:
 Creates valid endpoints for the jumpbox to reach AWS services (necessary to use `aws eks get-token`).
+
+![](./aws-images/13.png)
+
+I define a local variable interface_services containing the required service names, including:
+
+| **Endpoint**             | **Purpose**                                                                                 |
+|--------------------------|---------------------------------------------------------------------------------------------|
+| `eks`                    | Allows private access to the EKS API (for cluster provisioning and management)             |
+| `eks-auth`               | Enables token-based IAM authentication to the EKS cluster                                  |
+| `ec2`                    | Required for EC2 metadata operations (e.g., fetching AMIs, tags, ENIs, etc.)               |
+| `sts`                    | Needed for AWS IAM roles to assume other roles (e.g., with `sts:AssumeRole`)              |
+| `logs`                   | Enables access to CloudWatch Logs for logging and monitoring from inside the VPC           |
+| `ecr.api`                | Lets instances interact with Amazon ECR APIs (e.g., listing or describing images)          |
+| `ecr.dkr`                | Required to pull container images from Amazon ECR Docker registry                          |
+| `elasticloadbalancing`   | Allows internal access to the ELB API for managing load balancers                          |
+
+
+Using for_each, I loop through this list to dynamically create an aws_vpc_endpoint resource for each service.
+
+Is of type "Interface"
+
+Uses private DNS resolution (private_dns_enabled = true)
+
+Is deployed across the provided private subnets (subnet_ids)
+
+Is protected using the supplied security group IDs
+
+All endpoints are tagged accordingly with Name = "vpce-${each.key}" for easy identification.
+
+By default, access to AWS services (like EKS, STS, or ECR) goes over the public internet. But in a private subnet, there's no internet route — which breaks that access.
+
+Interface VPC Endpoints solve this by:
+
+Creating an elastic network interface (ENI) in your private subnet.
+
+Mapping the service DNS (like sts.amazonaws.com) to that internal ENI using Private DNS.
+
+Routing traffic from your EC2 instances through that ENI directly to the AWS service, over the AWS internal network (not the internet).
+
+Securing access with Security Groups, just like you would with instances.
+
+So, when an instance inside your private subnet tries to run aws sts get-caller-identity, it resolves sts.amazonaws.com to the private IP of the VPC endpoint and reaches STS internally — no NAT gateway or internet required.
 
 ### EKS:
 Creates the EKS cluster and adds the IAM roles.
