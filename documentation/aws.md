@@ -312,12 +312,31 @@ without this configmap, no one (even admins) can use kubectl or access the clust
 
 you dont need more resources because eks manages the control plane for you
 
-[Terraform documentation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_cluster)
+- [Terraform documentation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_cluster)
 
-[aws documentation](https://docs.aws.amazon.com/eks/latest/userguide/create-cluster.html)
+- [aws documentation](https://docs.aws.amazon.com/eks/latest/userguide/create-cluster.html)
 
 ### Security:
 
+
+responsible for controlling access, protecting resources, and enforcing secure communication between components
+
+![](./aws-images/16.png)
+
+it uses security groups to filter inbound and outbound traffic
+each sg defines rules by ip, port, and protocol
+key pairs are used for secure ssh access to vms
+admin and jumpbox have different key pairs and
+users connect to the jumpbox or admin vm, not directly to eks, on the other hand
+only approved paths and sources are allowed between components.
+
+internet access is restricted to specific ports like ssh or https
+communication between services happens over private channels
+the goal is to enforce least privilege and reduce attack surface.
+
+- [AWS Security Groups overview (AWS VPC User Guide)](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-groups.html)
+- [Security group rule basics and examples (AWS EC2 User Guide)](https://docs.aws.amazon.com/vpc/latest/userguide/security-group-rules.html)
+- [Terraform `aws_security_group` resource (Terraform AWS Provider)](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group)
 
 
 ### Network:
