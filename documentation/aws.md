@@ -214,6 +214,8 @@ Thanks to https://www.intelligentdiscovery.io/controls/eks/eks-inbound-port-443 
 
 ## final v3
 
+commands (in jumpbox for test it works)
+
 ```bash
 aws sts get-caller-identity
 aws eks update-kubeconfig --region eu-north-1 --name my-private-eks
@@ -260,44 +262,81 @@ I define a local variable interface_services containing the required service nam
 
 | **Endpoint**             | **Purpose**                                                                                 |
 |--------------------------|---------------------------------------------------------------------------------------------|
-| `eks`                    | Allows private access to the EKS API (for cluster provisioning and management)             |
+| `eks`                    | allows private access to the EKS API (cluster provisioning and management)             |
 | `eks-auth`               | Enables token-based IAM authentication to the EKS cluster                                  |
-| `ec2`                    | Required for EC2 metadata operations (e.g., fetching AMIs, tags, ENIs, etc.)               |
-| `sts`                    | Needed for AWS IAM roles to assume other roles (e.g., with `sts:AssumeRole`)              |
+| `ec2`                    | required for EC2 metadata operations             |
+| `sts`                    | Needed for AWS IAM roles to assume other roles        |
 | `logs`                   | Enables access to CloudWatch Logs for logging and monitoring from inside the VPC           |
-| `ecr.api`                | Lets instances interact with Amazon ECR APIs (e.g., listing or describing images)          |
-| `ecr.dkr`                | Required to pull container images from Amazon ECR Docker registry                          |
+| `ecr.api`                | Amazon ECR API (listing or describing images)          |
+| `ecr.dkr`                | required to pull container images from Amazon ECR Docker registry                          |
 | `elasticloadbalancing`   | Allows internal access to the ELB API for managing load balancers                          |
 
 
 Using for_each, I loop through this list to dynamically create an aws_vpc_endpoint resource for each service.
 
-Is of type "Interface"
-
-Uses private DNS resolution (private_dns_enabled = true)
-
-Is deployed across the provided private subnets (subnet_ids)
-
-Is protected using the supplied security group IDs
-
 All endpoints are tagged accordingly with Name = "vpce-${each.key}" for easy identification.
 
-By default, access to AWS services (like EKS, STS, or ECR) goes over the public internet. But in a private subnet, there's no internet route — which breaks that access.
+by default access to AWS services (like EKS, STS, or ECR) goes over the public internet. But in a private subnet, there is no internet route which breaks that access.
 
 Interface VPC Endpoints solve this by:
 
 Creating an elastic network interface (ENI) in your private subnet.
 
-Mapping the service DNS (like sts.amazonaws.com) to that internal ENI using Private DNS.
+mapping the service DNS (like sts.amazonaws.com) to that internal ENI using Private DNS
 
 Routing traffic from your EC2 instances through that ENI directly to the AWS service, over the AWS internal network (not the internet).
 
-Securing access with Security Groups, just like you would with instances.
+securing access with Security group just like you would with instances
 
-So, when an instance inside your private subnet tries to run aws sts get-caller-identity, it resolves sts.amazonaws.com to the private IP of the VPC endpoint and reaches STS internally — no NAT gateway or internet required.
+Ss when the jumpbox instance inside the private subnet tries to run aws sts get-caller-identity, it resolves sts.amazonaws.com to the private IP of the VPC endpoint and reaches STS internally 
+
+[Terraform documentation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_endpoint) [AWS documentation](https://docs.aws.amazon.com/vpc/latest/privatelink/create-interface-endpoint.html)
 
 ### EKS:
 Creates the EKS cluster and adds the IAM roles.
+
+![](./aws-images/14.png)
+
+aws_eks_cluster is needed to create the actual eks control plane, which is the heart of the kubernetes cluster
+it need a name, a role for permissions, and a kubernetes version.
+
+vpc_config is required so the control plane can talk to your network (via subnets and security group)
+you choose if the api endpoint is public or private based on your security needs
+
+the kubernetes provider is needed so terraform can connect to the new eks cluster and manage kubernetes resources
+it uses the clusters endpoint and certificate, and authenticates with aws eks get-token — this avoids manual kubeconfig steps
+
+the kubernetes_config_map resource creates the aws-auth configmap in kube-system
+this is required for allowing iam roles (like admins or a jumpbox role) to actually access the cluster
+without this configmap, no one (even admins) can use kubectl or access the cluster
+
+you dont need more resources because eks manages the control plane for you
+
+[Terraform documentation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_cluster)
+
+[aws documentation](https://docs.aws.amazon.com/eks/latest/userguide/create-cluster.html)
+
+### Security:
+
+
+
+### Network:
+
+the network module creates a vpc with public and private subnets, an internet gateway, and optional nat gateway for private subnet internet access.
+
+![](../documentation/aws-images/15.png)
+
+the network module sets up a vpc with three subnets: one public subnet called admin, which gets public ip addresses and connects directly to the internet via an internet gateway. 
+
+the other two are private subnets for eks, which dont have public ips and normally route internet traffic through a nat gateway. 
+
+but the nat gateway is commented out here because maybe the eks nodes use vpc endpoints instead, so they don’t need internet access.
+
+this setup keeps the jumpbox private and secure, while the admin subnet can be accessed from outside if needed
+
+[Terraform documentation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc)
+
+[aws documentation](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-getting-started.html)
 
 ### IAM:
 Creates the following roles:
