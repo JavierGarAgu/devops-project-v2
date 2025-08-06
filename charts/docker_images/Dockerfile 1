@@ -1,0 +1,20 @@
+FROM node:18-alpine AS builder
+WORKDIR /app
+ 
+# Copiamos package.json y lock y instalamos
+COPY package.json package-lock.json ./
+RUN npm install
+ 
+# Copiamos el resto del código y generamos el dist (carpeta de Vue)
+COPY . .
+RUN npm run build
+ 
+# 2) Stage de runtime con Nginx
+FROM nginx:stable-alpine
+ 
+# Copiamos tu nginx.conf personalizado
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY --from=builder /app/build /usr/share/nginx/html
+ 
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

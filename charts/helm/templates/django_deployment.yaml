@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.django.service.name }}
+  labels:
+    app: {{ .Values.django.service.name }}
+spec:
+  replicas: {{ .Values.django.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.django.service.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.django.service.name }}
+    spec:
+      containers:
+        - name: django
+          image: "{{ .Values.django.image.repository }}:{{ .Values.django.image.tag }}"
+          imagePullPolicy: {{ .Values.django.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.django.containerPort }}
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.django.env.POSTGRES_DB | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.django.env.POSTGRES_USER | quote }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.django.env.POSTGRES_PASSWORD | quote }}
+            - name: POSTGRES_HOST
+              value: {{ .Values.django.env.POSTGRES_HOST | quote }}
+            - name: POSTGRES_PORT
+              value: {{ .Values.django.env.POSTGRES_PORT | quote }}
+          resources:
+            {{- toYaml .Values.django.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.django.livenessProbe.path }}
+              port: {{ .Values.django.livenessProbe.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.django.readinessProbe.path }}
+              port: {{ .Values.django.readinessProbe.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10

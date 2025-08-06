@@ -1,0 +1,6 @@
+#chart.yaml
+apiVersion: v2
+name: coches
+version: 0.1.0
+appVersion: "1.0.0"
+description: Chart of my Vehicles app

@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./final-project-gestion-rrhh-backend-mavaro-devops
+      dockerfile: Dockerfile
+    container_name: gestion_rrhh_backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://137.117.194.84:5432/proyecto_final
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: password
+    ports:
+      - "8080:8080"
+    networks:
+      - gestion_rrhh_network
+
+  frontend:
+    build:
+      context: ./final-project-gestion-rrhh-frontend-mavaro-devops
+      dockerfile: Dockerfile
+    container_name: gestion_rrhh_frontend
+    ports:
+      - "8081:80"
+    depends_on:
+      - backend
+    networks:
+      - gestion_rrhh_network
+
+networks:
+  gestion_rrhh_network:
+
+volumes:
+  pgdata:
