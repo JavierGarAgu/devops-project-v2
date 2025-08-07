@@ -11,7 +11,6 @@ provider "aws" {
   region = "eu-north-1"
 }
 
-# ✅ Security Group allowing inbound access to port 5432
 resource "aws_security_group" "postgres_sg" {
   name        = "allow-postgres"
   description = "Allow PostgreSQL inbound traffic"
@@ -22,7 +21,7 @@ resource "aws_security_group" "postgres_sg" {
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # ❗ Replace with your IP (e.g., "123.45.67.89/32") for better security
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -48,9 +47,8 @@ resource "aws_db_instance" "postgres" {
   allocated_storage       = 20
   storage_type            = "gp2"
   engine                  = "postgres"
-  engine_version          = "13.15"
+  engine_version          = "14.18"
   instance_class          = "db.t3.micro"
-  db_name                 = "final_project"
   username                = "postgres"
   password                = "password"
   publicly_accessible     = true
