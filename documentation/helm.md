@@ -35,7 +35,12 @@ CREATE DATABASE final_project
 psql -h host -U postgres -d final_project -f .\init.sql
 
 #manual delete database if will it needed
+
 DROP DATABASE final_project;
+
+# create docker images into minikube
+
+& minikube -p minikube docker-env | Invoke-Expression
 
 # TODO fix
 
@@ -57,3 +62,11 @@ The form has a valid CSRF token. After logging in in another browser tab or hitt
 You’re seeing the help section of this page because you have DEBUG = True in your Django settings file. Change that to False, and only the initial error message will be displayed.
 
 You can customize this page using the CSRF_FAILURE_VIEW setting.
+
+SOLUTION
+
+kubectl port-forward service/nginx 8080:80
+
+and in the settings.py of the Django app
+https://stackoverflow.com/questions/70508568/django-csrf-trusted-origins-not-working-as-expected/70518254
+(last message)
