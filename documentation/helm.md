@@ -41,6 +41,8 @@ DROP DATABASE final_project;
 # create docker images into minikube
 
 & minikube -p minikube docker-env | Invoke-Expression
+docker build --no-cache -t myapp-django:1.0.5 .
+
 
 # TODO fix
 
@@ -65,8 +67,17 @@ You can customize this page using the CSRF_FAILURE_VIEW setting.
 
 SOLUTION
 
-kubectl port-forward service/nginx 8080:80
+FIRST STOP ALL SERVICES USING PORT 80
 
-and in the settings.py of the Django app
+netstat -aon | findstr :80
+NET stop HTTP
+
+then
+
+kubectl port-forward service/nginx 80:80
+
+If u prefer o use another port:
+
+settings.py of the Django app
 https://stackoverflow.com/questions/70508568/django-csrf-trusted-origins-not-working-as-expected/70518254
 (last message)
