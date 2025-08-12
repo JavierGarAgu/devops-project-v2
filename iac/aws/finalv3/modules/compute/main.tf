@@ -26,10 +26,17 @@ resource "aws_instance" "admin" {
   associate_public_ip_address = true
   vpc_security_group_ids      = [var.ssh_sg_id]
 
-  user_data = templatefile(var.admin_vm_script, {
-    private_key = var.private_key_pem,
-    jumpbox_ip  = aws_instance.jumpbox.private_ip
-  })
+user_data = <<-EOF
+              #!/bin/bash
+              mkdir -p /home/ec2-user/.ssh
+              echo '${var.private_key_pem}' > /home/ec2-user/.ssh/jumpbox_id_rsa
+              chmod 600 /home/ec2-user/.ssh/jumpbox_id_rsa
+              chown ec2-user:ec2-user /home/ec2-user/.ssh/jumpbox_id_rsa
+
+              # Export jumpbox IP as environment variable for ec2-user
+              echo "export JUMPBOX_IP=${jumpbox_ip}" >> /home/ec2-user/.bash_profile
+              chown ec2-user:ec2-user /home/ec2-user/.bash_profile
+              EOF
 
   provisioner "file" {
     source      = var.rpms_file
