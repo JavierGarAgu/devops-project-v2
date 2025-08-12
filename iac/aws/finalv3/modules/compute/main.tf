@@ -34,7 +34,7 @@ user_data = <<-EOF
               chown ec2-user:ec2-user /home/ec2-user/.ssh/jumpbox_id_rsa
 
               # Export jumpbox IP as environment variable for ec2-user
-              echo "export JUMPBOX_IP=${jumpbox_ip}" >> /home/ec2-user/.bash_profile
+              echo "export JUMPBOX_IP=${aws_instance.jumpbox.private_ip}" >> /home/ec2-user/.bash_profile
               chown ec2-user:ec2-user /home/ec2-user/.bash_profile
               EOF
 

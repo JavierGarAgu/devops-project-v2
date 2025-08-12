@@ -23,7 +23,7 @@ echo "Using jumpbox IP: ${jumpbox_ip}" >> /home/ec2-user/debug.txt
 # Wait for jumpbox SSH port
 echo "Waiting for jumpbox SSH to be ready..."
 for i in {1..30}; do
-  ssh -o StrictHostKeyChecking=no -i /home/ec2-user/jumpbox.pem ec2-user@"${jumpbox_ip}" "echo ok" && break
+  ssh -o StrictHostKeyChecking=no -i /home/ec2-user/.ssh/jumpbox_id_rsa ec2-user@"${jumpbox_ip}" "echo ok" && break
   sleep 10
 done
 
