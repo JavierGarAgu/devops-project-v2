@@ -28,8 +28,8 @@ minikube start
 CREATE DATABASE final_project
   WITH TEMPLATE = template0
   ENCODING = 'UTF8'
-  LC_COLLATE = 'es_ES.UTF8'
-  LC_CTYPE = 'es_ES.UTF8';
+  LC_COLLATE = 'en_US.UTF8'
+  LC_CTYPE = 'en_US.UTF8';
 
 
 psql -h host -U postgres -d final_project -f .\init.sql
@@ -41,7 +41,7 @@ DROP DATABASE final_project;
 # create docker images into minikube
 
 & minikube -p minikube docker-env | Invoke-Expression
-docker build --no-cache -t myapp-django:1.0.5 .
+docker build --no-cache -t myapp-django:1.0.0 .
 
 
 # TODO fix
@@ -76,7 +76,7 @@ then
 
 kubectl port-forward service/nginx 80:80
 
-If u prefer o use another port:
+If u prefer to use another port:
 
 settings.py of the Django app
 https://stackoverflow.com/questions/70508568/django-csrf-trusted-origins-not-working-as-expected/70518254
