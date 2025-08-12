@@ -479,7 +479,32 @@ output "jumpbox_profile" {
 }
 ```
 
+# RPMS
 
+Terraform infraestructure focus on generate the RPMS file with only one VM
+
+# JUMPBOX
+
+This infraestructure provisions an `Admin VM` in a public subnet and a `Jumpbox VM` in a private subnet within the same VPC.  
+It is used to test how a jumpbox works
+
+## How It Works
+
+Two RSA key pairs are created via the `tls` provider, but in the finalv3 proyect with only one is good too
+- `admin_id_rsa` for Admin VM login.
+- `jumpbox_id_rsa` for Jumpbox VM login.
+
+`user_data` in Admin VM copies the Jumpbox key into `/home/ec2-user/.ssh/` and sets correct permissions.
+
+With the jumpbox.ps1 and connection.ps1 we will connect into the different machines.
+From the root of your Terraform project (where this module is integrated):
+
+```bash
+terraform init
+terraform apply -auto-approve
+```
+
+Then run the PowerShell script from your local machine to connect to the Jumpbox through the admin VM.
 
 
 
