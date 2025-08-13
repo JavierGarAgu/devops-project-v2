@@ -483,6 +483,19 @@ output "jumpbox_profile" {
 
 Terraform infraestructure focus on generate the RPMS file with only one VM
 
+# RDS
+
+this terraform code deploy a postgresql rds database in aws for local testing like with minikube
+it use the default vpc and create a security group alowing inbound traffic on port 5432 from anywhere
+the rds instance run postgresql version 14.18 with a small db.t3.micro instance type and 20 gb storage
+public accesibility is enable so the database can be reached from outside aws
+it skip creating a final snapshot and disable deletion protection for easy teardown
+the username is postgres and the password is password (not recomended for production)
+tags are set for identify the security group and the database
+the security group allow all egress traffic so the database can do outbound conections if needed
+the output give a full postgresql conection string with credentials host port and database name
+sensitive output make sure the conection string is hide in normal terraform output logs
+
 # JUMPBOX
 
 This infraestructure provisions an `Admin VM` in a public subnet and a `Jumpbox VM` in a private subnet within the same VPC.  
@@ -505,6 +518,34 @@ terraform apply -auto-approve
 ```
 
 Then run the PowerShell script from your local machine to connect to the Jumpbox through the admin VM.
+
+# ECR
+
+
+
+first install [aws tools for powershell](https://docs.aws.amazon.com/powershell/v5/userguide/ps-installing-awstools.html)
+
+Open powershell with administrator rights
+
+execute the following commands
+
+Install-Module -Name AWS.Tools.Installer
+
+![](../documentation/aws-images/17.png)
+
+Next install the ECR module
+
+Install-AWSToolsModule AWS.Tools.ECR -CleanUp
+
+![](../documentation/aws-images/18.png)
+
+Finally lets install the module for bring use to all users not only with admin rights
+
+Install-AWSToolsModule AWS.Tools.IdentityManagement -Scope AllUsers
+
+![](../documentation/aws-images/18.png)
+
+
 
 
 
