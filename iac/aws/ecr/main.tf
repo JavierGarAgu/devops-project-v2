@@ -8,22 +8,25 @@ terraform {
 }
 
 provider "aws" {
+  alias  = "us_east_1"
   region = "us-east-1"
 }
 
-# Create a public ECR repository
 resource "aws_ecrpublic_repository" "public_example" {
-  repository_name = "public-example"
+  provider = aws.us_east_1
+
+  repository_name = "bar"
 
   catalog_data {
-    description       = "container for some things"
+    about_text        = "About Text"
+    architectures     = ["ARM"]
+    description       = "Description"
     operating_systems = ["Linux"]
-    architectures     = ["x86"]
+    usage_text        = "Usage Text"
   }
 
   tags = {
-    Terraform   = "true"
-    Environment = "dev"
+    env = "production"
   }
 }
 

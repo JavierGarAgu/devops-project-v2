@@ -545,7 +545,22 @@ Install-AWSToolsModule AWS.Tools.IdentityManagement -Scope AllUsers
 
 ![](../documentation/aws-images/18.png)
 
+Okay, so this doesnt work too, the reason is that Powershell doesnt support to get the password and do a docker login in the same command, but i decided to leave here for if i needed in the future.
+Firs we have another problem, and its called Windows Credential Manager, which has a token length limit that breaks with long AWS SSO tokens. 
 
+renaming or deleting docker-credential-wincred.exe prevents Docker from using it, and removing the credStore or credsStore keys in the Docker config file tells Docker to skip the credential helper entirely. As a result, credentials are saved directly in the config.json file in plain text, which avoids the token length limit but is less secure. This allows long SSO tokens to work so that docker login succeeds, but at the cost of storing passwords unencrypted.
+
+https://forums.docker.com/t/using-awss-ecr-get-login-password-and-password-stdin-with-powershell/125349/7
+https://stackoverflow.com/questions/60807697/docker-login-error-storing-credentials-the-stub-received-bad-data
+
+
+```powershell
+cmd /c "aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/g4h8b2s8"
+```
+
+![](./aws-images/20.png)
+
+but we have the problem that its less secure, in a production project this cant be a solution, u must apply a docker-credential-ecr-login or some credential helper, plain text secrets are not alowed in the real work
 
 
 
