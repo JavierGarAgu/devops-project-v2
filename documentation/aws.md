@@ -641,6 +641,8 @@ aws ecr get-login-password --region eu-north-1 | helm registry login --username 
 
 Now lets explain a little bit the infraestructure
 
+![](../documentation/aws-images/26.png)
+
 We part from the jumpbox infraestructure, and we simply add the scripts for install docker and helm into the jumpbox and the private ecrs, with a new vpc endpoint to access into it and IAM rules for private ECR
 
 ## IAM
