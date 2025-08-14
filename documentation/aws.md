@@ -625,3 +625,33 @@ Helm registry logout public.ecr.aws/url
 ```
 
 
+# PRIVATE ECR
+
+Now that we are using the ADMIN/Jumpbox infraestructure we dont have the powershell problem, so we simply run the following commands:
+
+```cmd
+powershell -ExecutionPolicy Bypass -File .\jumpbox.ps1
+
+aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin id.dkr.ecr.eu-north-1.amazonaws.com
+
+aws ecr get-login-password --region eu-north-1 | helm registry login --username AWS --password-stdin id.dkr.ecr.eu-north-1.amazonaws.com
+```
+
+![](./aws-images/25.png)
+
+Now lets explain a little bit the infraestructure
+
+We part from the jumpbox infraestructure, and we simply add the scripts for install docker and helm into the jumpbox and the private ecrs, with a new vpc endpoint to access into it and IAM rules for private ECR
+
+## IAM
+
+The IAM role, named `jumpbox-ecr-role` is designed for the jumpbox and allows the EC2 service to assume this role, so any EC2 instance with this role attached can get temporary AWS credentials without storing access keys locally.
+
+The IAM policy, named `jumpbox-ecr-policy` grants the jumpbox the ability to work with specific Amazon ECR repositories called `cars` and `docker` and it allows the instance to authenticate to ECR by getting an authorization token and then perform actions needed to pull and push container images or helm charts
+
+## VPC ENDPOINTS
+
+this configuration creates VPC interface endpoints that allow private connectivity from the jumpboxs subnet to Amazon ECR and AWS STS without using the public internet
+
+each endpoint is deployed inside the main VPC, associated with the jumpbox subnet, and protected by the jumpbox’s security group. Private DNS is enabled so that standard service names resolve to these private connections instead of public ones. This setup ensures that the jumpbox can authenticate with STS interact with the ECR API and push or pull images from ECR through the AWS internal networ
+
