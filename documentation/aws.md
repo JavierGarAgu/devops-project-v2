@@ -553,19 +553,75 @@ renaming or deleting docker-credential-wincred.exe prevents Docker from using it
 https://forums.docker.com/t/using-awss-ecr-get-login-password-and-password-stdin-with-powershell/125349/7
 https://stackoverflow.com/questions/60807697/docker-login-error-storing-credentials-the-stub-received-bad-data
 
+DOCKER LOGIN
 
 ```powershell
-cmd /c "aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/g4h8b2s8"
+cmd /c "aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/url"
 ```
 
 ![](./aws-images/20.png)
 
 but we have the problem that its less secure, in a production project this cant be a solution, u must apply a docker-credential-ecr-login or some credential helper, plain text secrets are not alowed in the real work
 
+DOCKER PUSH
 
+*url = repo unique id
 
+```powershell
+docker tag public.ecr.aws/url/myapp-django:1.0.0 public.ecr.aws/url/reponame:x
+```
 
+```powershell
+docker push public.ecr.aws/url/reponame:x
+```
 
+DOCKER PULL
 
+```powershell
+docker pull public.ecr.aws/url/reponame:x
+```
+
+![](../documentation/aws-images/24.png)
+
+DOCKER LOGOUT
+
+```powershell
+docker logout
+```
+
+HELM LOGIN
+
+```powershell
+cmd /c "aws ecr-public get-login-password --region us-east-1 | helm registry login --username AWS --password-stdin public.ecr.aws/url"
+```
+
+![](../documentation/aws-images/21.png)
+
+UPLOAD CHART
+
+``` powershell
+helm package .
+```
+
+ITS NECESARY A REPO WITH THE SAME NAME AS THE CHART
+
+![](../documentation/aws-images/22.png)
+
+```powershell
+helm push coches-0.1.0.tgz oci://public.ecr.aws/url
+```
+![](../documentation/aws-images/23.png)
+
+HELM PULL
+
+```powershell
+helm pull oci://public.ecr.aws/url/coches --version 0.1.0
+```
+
+HELM Logout
+
+```powershell
+Helm registry logout public.ecr.aws/url
+```
 
 
