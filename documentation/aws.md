@@ -184,6 +184,7 @@ If we try from our PC we get timeout error:
 
 ## final v2
 
+FIRST, HERE WE HAVE ALL THE PACKAGES IN [AMAZON LINUX 2023](https://docs.aws.amazon.com/linux/al2023/release-notes/all-packages-AL2023.8.html)
 Now the Terraform infrastructure is more complex, so let’s analyze the file to understand what we are creating.
 
 We automate the installation of binaries via RPM.  
@@ -211,6 +212,18 @@ rpm -e aws
 Use script `awsrpmcreator.sh` in `/iac/aws/finalv2/bin`
 
 Thanks to https://www.intelligentdiscovery.io/controls/eks/eks-inbound-port-443 for help solving EKS private endpoint issues.
+
+PSQL rpm obtain
+
+```cmd
+dnf download postgresql15
+dnf download postgresql15-private-libs
+```
+
+tar and untar files
+
+
+
 
 ## final v3
 
@@ -496,6 +509,12 @@ the security group allow all egress traffic so the database can do outbound cone
 the output give a full postgresql conection string with credentials host port and database name
 sensitive output make sure the conection string is hide in normal terraform output logs
 
+LOAD SQL SCRIPT
+
+psql -h host -U postgres -d final_project -f .\init.sql
+
+
+
 # JUMPBOX
 
 This infraestructure provisions an `Admin VM` in a public subnet and a `Jumpbox VM` in a private subnet within the same VPC.  
@@ -656,4 +675,30 @@ The IAM policy, named `jumpbox-ecr-policy` grants the jumpbox the ability to wor
 this configuration creates VPC interface endpoints that allow private connectivity from the jumpboxs subnet to Amazon ECR and AWS STS without using the public internet
 
 each endpoint is deployed inside the main VPC, associated with the jumpbox subnet, and protected by the jumpbox’s security group. Private DNS is enabled so that standard service names resolve to these private connections instead of public ones. This setup ensures that the jumpbox can authenticate with STS interact with the ECR API and push or pull images from ECR through the AWS internal networ
+
+# PRIVATE RDS
+
+This module have the objetive to test private RDS connections with postgresql v14 engine and postgres v15 client
+
+Get secrets
+
+```cmd
+aws secretsmanager get-secret-value --secret-id 'private_postgres_master_secret_arn' --query 'SecretString' --output text
+```
+![](../documentation/aws-images/27.png)
+
+TEST the connection (best option, in the capture there is another option with env vars)
+
+```cmd
+psql --host=host --port=5432 --username=username --dbname=postgres
+```
+
+![](../documentation/aws-images/28.png)
+
+LOAD SQL SCRIPT
+
+psql -h host -U utawj9s4zcm6rorz -d postgres -f init.sql
+
+![](../documentation/aws-images/29.png)
+
 

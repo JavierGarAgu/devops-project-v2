@@ -63,12 +63,4 @@ else
   echo "[✓] Helm already installed"
 fi
 
-echo "[+] Installing PostgreSQL client (psql)..."
-if ! command -v psql &> /dev/null; then
-  sudo dnf install -y postgresql
-  echo "[✓] PostgreSQL client installed"
-else
-  echo "[✓] PostgreSQL client already installed"
-fi
-
 echo "[✓] All tools installed successfully."

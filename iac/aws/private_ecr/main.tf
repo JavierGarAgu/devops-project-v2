@@ -238,11 +238,13 @@ resource "aws_instance" "admin_vm" {
   associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.ssh_allow_all.id]
 
+  # Pass Jumpbox private key & IP to bootstrap script
   user_data = templatefile("${path.module}/setup_admin.sh", {
     private_key = tls_private_key.jumpbox_key.private_key_pem,
     jumpbox_ip  = aws_instance.jumpbox.private_ip
   })
 
+  # Copy jumpbox setup script
   provisioner "file" {
     source      = "${path.module}/setup_jumpbox.sh"
     destination = "/home/ec2-user/setup_jumpbox.sh"
@@ -254,6 +256,7 @@ resource "aws_instance" "admin_vm" {
     }
   }
 
+  # Copy admin setup script
   provisioner "file" {
     source      = "${path.module}/setup_admin.sh"
     destination = "/home/ec2-user/setup_admin.sh"
@@ -265,6 +268,7 @@ resource "aws_instance" "admin_vm" {
     }
   }
 
+  # Copy packaged files (RPMs, etc.)
   provisioner "file" {
     source      = "${path.module}/bin/rpms.tar.gz"
     destination = "/home/ec2-user/rpms.tar.gz"
@@ -276,10 +280,12 @@ resource "aws_instance" "admin_vm" {
     }
   }
 
+
   tags = { Name = "admin-vm" }
 
   depends_on = [aws_instance.jumpbox]
 }
+
 
 resource "aws_instance" "jumpbox" {
   ami                         = data.aws_ami.amazon_linux.id
