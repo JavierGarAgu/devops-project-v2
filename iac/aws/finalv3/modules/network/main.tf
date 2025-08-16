@@ -36,15 +36,22 @@ resource "aws_subnet" "eks_b" {
   tags              = { Name = "eks-subnet-b" }
 }
 
-# resource "aws_nat_gateway" "nat" {
-#   allocation_id = aws_eip.nat.id
-#   subnet_id     = aws_subnet.admin.id
-#   tags = { Name = "main-nat" }
-# }
+# DB needs a subnet group with at least 2 subnets in different AZs
+resource "aws_subnet" "db_subnet_a" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.3.0/24"
+  map_public_ip_on_launch = false
+  availability_zone       = data.aws_availability_zones.available.names[3]
+  tags = { Name = "db-subnet-a" }
+}
 
-# resource "aws_eip" "nat" {
-#   domain = "vpc"
-# }
+resource "aws_subnet" "db_subnet_b" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.4.0/24"
+  map_public_ip_on_launch = false
+  availability_zone       = data.aws_availability_zones.available.names[4]
+  tags = { Name = "db-subnet-b" }
+}
 
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id

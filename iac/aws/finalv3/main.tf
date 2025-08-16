@@ -24,12 +24,21 @@ module "network" {
 
 module "iam" {
   source = "./modules/iam"
+  cars_arn = module.ecr.ecr_cars_repository_arn
+  docker_arn = module.ecr.ecr_docker_repository_arn
 }
 
 module "security" {
   source   = "./modules/security"
   vpc_id   = module.network.vpc_id
   subnet_cidr = module.network.eks_subnet_a_cidr
+}
+
+module "ecr" {
+  source   = "./modules/ecr"
+  cars_name   = "cars"
+  docker_name = "docker"
+  mutability = "MUTABLE"
 }
 
 module "eks" {
