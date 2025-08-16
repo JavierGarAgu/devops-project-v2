@@ -33,3 +33,24 @@ done
 echo "All RPM packages installed."
 
 echo "[+] Jumpbox setup complete"
+
+source /home/ec2-user/env.sh
+
+# Get secret from AWS
+secret=$(aws secretsmanager get-secret-value --secret-id "$rds_arn" --query 'SecretString' --output text)
+
+# Extract username and password
+user=$(echo "$secret" | jq -r .username)
+pass=$(echo "$secret" | jq -r .password)
+
+# Escape colon in password for .pgpass
+escaped_pass=$(echo "$pass" | sed 's/:/\\:/g')
+
+# Create .pgpass in current user's home
+echo "${phostname}:5432:*:${user}:${escaped_pass}" > ~/.pgpass
+chmod 600 ~/.pgpass
+
+# Connect with psql (password will be read from .pgpass)
+psql -h "$phostname" -U "$user" -d postgres -f init.sql
+
+

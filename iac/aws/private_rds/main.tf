@@ -302,7 +302,9 @@ resource "aws_instance" "admin_vm" {
   # Pass Jumpbox private key & IP to bootstrap script
   user_data = templatefile("${path.module}/setup_admin.sh", {
     private_key = tls_private_key.jumpbox_key.private_key_pem,
-    jumpbox_ip  = aws_instance.jumpbox.private_ip
+    jumpbox_ip  = aws_instance.jumpbox.private_ip,
+    phostname = aws_db_instance.private_postgres.address,
+    rds_arn = aws_db_instance.private_postgres.master_user_secret[0].secret_arn
   })
 
   # Copy jumpbox setup script
@@ -366,6 +368,9 @@ resource "aws_instance" "jumpbox" {
   vpc_security_group_ids      = [aws_security_group.jumpbox_sg.id]
   iam_instance_profile        = aws_iam_instance_profile.jumpbox_rds_profile.name
   tags = { Name = "jumpbox" }
+
+  depends_on = [aws_db_instance.private_postgres]
+
 }
 
 # ─────────────────────────────────────────────

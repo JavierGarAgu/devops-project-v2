@@ -697,7 +697,7 @@ psql --host=host --port=5432 --username=username --dbname=postgres
 
 LOAD SQL SCRIPT
 
-psql -h host -U utawj9s4zcm6rorz -d postgres -f init.sql
+psql -h host -U user -d postgres -f init.sql
 
 ![](../documentation/aws-images/29.png)
 
