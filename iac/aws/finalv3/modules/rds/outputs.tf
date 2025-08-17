@@ -1,19 +1,7 @@
-output "vpc_id" {
-  value = aws_vpc.main.id
+output "phostname" {
+  value = aws_db_instance.private_postgres.address
 }
 
-output "admin_subnet_id" {
-  value = aws_subnet.admin.id
-}
-
-output "eks_subnet_ids" {
-  value = [aws_subnet.eks_a.id, aws_subnet.eks_b.id]
-}
-
-output "eks_subnet_a_id" {
-  value = aws_subnet.eks_a.id
-}
-
-output "eks_subnet_a_cidr" {
-  value = aws_subnet.eks_a.cidr_block
+output "rds_arn"{
+  value = aws_db_instance.private_postgres.master_user_secret[0].secret_arn
 }

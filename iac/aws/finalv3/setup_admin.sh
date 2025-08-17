@@ -5,6 +5,8 @@ set -x
 
 jumpbox_ip="__JUMPBOX_IP__"
 private_key="__PRIVATE_KEY__"
+rds_arn="__RDS_ARN__"
+phostname="__PHOSTNAME__"
 
 #!/bin/bash
 mkdir -p /home/ec2-user/.ssh
@@ -18,6 +20,9 @@ echo "export JUMPBOX_IP=${jumpbox_ip}" >> /home/ec2-user/.bash_profile
 chown ec2-user:ec2-user /home/ec2-user/.bash_profile
 
 echo "Using jumpbox IP: ${jumpbox_ip}" >> /home/ec2-user/debug.txt
+
+echo "rds_arn=${rds_arn}" > /home/ec2-user/env.sh
+echo "phostname=${phostname}" >> /home/ec2-user/env.sh
 
 
 # Wait for jumpbox SSH port
@@ -55,7 +60,8 @@ done
 # Transfer files
 scp -o StrictHostKeyChecking=no -i /home/ec2-user/.ssh/jumpbox_id_rsa /home/ec2-user/setup_jumpbox.sh ec2-user@"${jumpbox_ip}":/home/ec2-user/
 scp -o StrictHostKeyChecking=no -i /home/ec2-user/.ssh/jumpbox_id_rsa /home/ec2-user/rpms.tar.gz ec2-user@"${jumpbox_ip}":/home/ec2-user/
-
+scp -o StrictHostKeyChecking=no -i /home/ec2-user/.ssh/jumpbox_id_rsa /home/ec2-user/init.sql ec2-user@"${jumpbox_ip}":/home/ec2-user/
+scp -o StrictHostKeyChecking=no -i /home/ec2-user/.ssh/jumpbox_id_rsa /home/ec2-user/env.sh ec2-user@"${jumpbox_ip}":/home/ec2-user/
 # Wait until rpms.tar.gz is fully present on remote system
 echo "Waiting for rpms.tar.gz to appear on remote host..."
 while true; do

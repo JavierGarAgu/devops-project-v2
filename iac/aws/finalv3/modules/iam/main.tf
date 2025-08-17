@@ -1,6 +1,8 @@
-# Jumpbox IAM Role
+############################################
+# Unified Jumpbox IAM Role
+############################################
 resource "aws_iam_role" "jumpbox_role" {
-  name = "jumpbox-role" # unified name
+  name = "jumpbox-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -15,7 +17,9 @@ resource "aws_iam_role" "jumpbox_role" {
   })
 }
 
-# Attach EKS-related policies
+############################################
+# EKS Policy Attachments
+############################################
 resource "aws_iam_role_policy_attachment" "eks_cluster" {
   role       = aws_iam_role.jumpbox_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
@@ -31,7 +35,9 @@ resource "aws_iam_role_policy_attachment" "vpc_resource_controller" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSVPCResourceController"
 }
 
-# Custom ECR Policy
+############################################
+# ECR Custom Policy
+############################################
 resource "aws_iam_policy" "jumpbox_ecr_policy" {
   name        = "jumpbox-ecr-policy"
   description = "Allow jumpbox to authenticate, pull and push to cars & docker ECR"
@@ -59,8 +65,8 @@ resource "aws_iam_policy" "jumpbox_ecr_policy" {
           "ecr:ListImages"
         ],
         Resource = [
-          aws_ecr_repository.cars.arn,
-          aws_ecr_repository.docker.arn
+          var.docker_arn,
+          var.cars_arn
         ]
       }
     ]
@@ -72,7 +78,37 @@ resource "aws_iam_role_policy_attachment" "jumpbox_ecr_policy_attach" {
   policy_arn = aws_iam_policy.jumpbox_ecr_policy.arn
 }
 
-# Instance Profile for EC2 Jumpbox
+############################################
+# RDS Secrets Policy
+############################################
+data "aws_iam_policy_document" "jumpbox_secrets_doc" {
+  statement {
+    sid     = "AllowGetDbMasterSecret"
+    effect  = "Allow"
+    actions = [
+      "secretsmanager:GetSecretValue",
+      "secretsmanager:DescribeSecret"
+    ]
+    resources = [
+      var.rds_arn
+    ]
+  }
+}
+
+resource "aws_iam_policy" "jumpbox_secrets_policy" {
+  name        = "jumpbox-secrets-get-policy"
+  description = "Allow jumpbox to read the RDS master secret only"
+  policy      = data.aws_iam_policy_document.jumpbox_secrets_doc.json
+}
+
+resource "aws_iam_role_policy_attachment" "jumpbox_secrets_attach" {
+  role       = aws_iam_role.jumpbox_role.name
+  policy_arn = aws_iam_policy.jumpbox_secrets_policy.arn
+}
+
+############################################
+# Instance Profile
+############################################
 resource "aws_iam_instance_profile" "jumpbox_profile" {
   name = "jumpbox-instance-profile"
   role = aws_iam_role.jumpbox_role.name

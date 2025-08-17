@@ -14,3 +14,7 @@ output "private_key_pem" {
 output "key_pair_name" {
   value = aws_key_pair.generated.key_name
 }
+
+output "db_sg_id" {
+  value = aws_security_group.db_sg.id
+}

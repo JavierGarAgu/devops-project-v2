@@ -2,6 +2,11 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+data "aws_availability_zones" "db" {
+  state = "available"
+}
+
+
 resource "aws_vpc" "main" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_support   = true
@@ -39,17 +44,17 @@ resource "aws_subnet" "eks_b" {
 # DB needs a subnet group with at least 2 subnets in different AZs
 resource "aws_subnet" "db_subnet_a" {
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.3.0/24"
+  cidr_block              = "10.0.4.0/24"
   map_public_ip_on_launch = false
-  availability_zone       = data.aws_availability_zones.available.names[3]
+  availability_zone       = data.aws_availability_zones.db.names[0]
   tags = { Name = "db-subnet-a" }
 }
 
 resource "aws_subnet" "db_subnet_b" {
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.4.0/24"
+  cidr_block              = "10.0.5.0/24"
   map_public_ip_on_launch = false
-  availability_zone       = data.aws_availability_zones.available.names[4]
+  availability_zone       = data.aws_availability_zones.available.names[1]
   tags = { Name = "db-subnet-b" }
 }
 

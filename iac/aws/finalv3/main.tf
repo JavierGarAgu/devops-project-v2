@@ -26,6 +26,7 @@ module "iam" {
   source = "./modules/iam"
   cars_arn = module.ecr.ecr_cars_repository_arn
   docker_arn = module.ecr.ecr_docker_repository_arn
+  rds_arn = module.rds.rds_arn
 }
 
 module "security" {
@@ -71,13 +72,17 @@ module "compute" {
   jumpbox_ip          = module.compute.jumpbox_private_ip
   admin_vm_script     = var.admin_vm_script
   rpms_file           = var.rpms_file
-  jumpbox_setup_file = var.jumpbox_setup_file
+  sql_file            = var.sql_file
+  jumpbox_setup_file  = var.jumpbox_setup_file
+  phostname           = module.rds.phostname
+  rds_arn             = module.rds.rds_arn  
 }
 
 module "rds"{
   source = "./modules/rds"
   db_subnet_a_id = module.network.db_subnet_a_id
   db_subnet_b_id = module.network.db_subnet_b_id
+  db_sg_id = module.security.db_sg_id
 }
 
 output "admin_vm_public_ip" {

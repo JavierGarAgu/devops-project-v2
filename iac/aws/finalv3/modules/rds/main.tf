@@ -1,7 +1,7 @@
 # Private RDS Instance (NO hardcoded password)
 resource "aws_db_subnet_group" "private_db_subnet_group" {
   name       = "private-db-subnet-group"
-  subnet_ids = [aws_subnet.db_subnet_a.id, aws_subnet.db_subnet_b.id]
+  subnet_ids = [var.db_subnet_a_id, var.db_subnet_b_id]
   tags       = { Name = "private-db-subnet-group" }
 }
 # Random (username only; password managed by RDS/Secrets Manager)
@@ -29,7 +29,7 @@ resource "aws_db_instance" "private_postgres" {
   publicly_accessible          = false
   skip_final_snapshot          = true
   deletion_protection          = false
-  vpc_security_group_ids       = [aws_security_group.db_sg.id]
+  vpc_security_group_ids       = [var.db_sg_id]
   db_subnet_group_name         = aws_db_subnet_group.private_db_subnet_group.name
   tags = { Name = "private-project-db" }
 }

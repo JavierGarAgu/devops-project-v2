@@ -5,3 +5,6 @@ variable "docker_arn" {
 variable "cars_arn" {
   type = string
 }
+variable "rds_arn" {
+  type = string
+}

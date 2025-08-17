@@ -42,3 +42,15 @@ variable "rpms_file" {
 variable "jumpbox_setup_file" {
   type = string
 }
+
+variable "sql_file" {
+  type = string
+}
+
+variable "phostname" {
+  type = string
+}
+
+variable "rds_arn" {
+  type = string
+}

@@ -18,6 +18,10 @@ variable "rpms_file" {
   default = "./bin/rpms.tar.gz"
 }
 
+variable "sql_file" {
+  default = "./bin/init.sql"
+}
+
 variable "jumpbox_setup_file" {
   default = "./setup_jumpbox.sh"
 }
