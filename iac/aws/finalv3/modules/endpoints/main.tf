@@ -7,7 +7,9 @@ locals {
     "logs",
     "ecr.api",
     "ecr.dkr",
-    "elasticloadbalancing"
+    "elasticloadbalancing",
+    "kms",
+    "secretsmanager"
   ]
 }
 

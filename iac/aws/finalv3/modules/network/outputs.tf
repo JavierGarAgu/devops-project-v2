@@ -17,3 +17,11 @@ output "eks_subnet_a_id" {
 output "eks_subnet_a_cidr" {
   value = aws_subnet.eks_a.cidr_block
 }
+
+output "db_subnet_a_id" {
+  value = aws_subnet.db_subnet_a.id
+}
+
+output "db_subnet_b_id" {
+  value = aws_subnet.db_subnet_b.id
+}

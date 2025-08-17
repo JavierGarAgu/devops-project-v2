@@ -74,6 +74,12 @@ module "compute" {
   jumpbox_setup_file = var.jumpbox_setup_file
 }
 
+module "rds"{
+  source = "./modules/rds"
+  db_subnet_a_id = module.network.db_subnet_a_id
+  db_subnet_b_id = module.network.db_subnet_b_id
+}
+
 output "admin_vm_public_ip" {
   value = module.compute.admin_public_ip
 }
