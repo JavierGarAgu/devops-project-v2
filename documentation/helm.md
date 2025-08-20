@@ -81,3 +81,40 @@ If u prefer to use another port:
 settings.py of the Django app
 https://stackoverflow.com/questions/70508568/django-csrf-trusted-origins-not-working-as-expected/70518254
 (last message)
+
+# ACR
+
+Actions Runner Controller (ARC) is a Kubernetes operator that orchestrates and scales self-hosted runners for GitHub Actions.
+
+[Official repo](https://github.com/actions/actions-runner-controller)
+
+Commands:
+
+helm repo add jetstack https://charts.jetstack.io
+helm repo update
+kubectl create namespace cert-manager
+helm install cert-manager jetstack/cert-manager --namespace cert-manager --set installCRDs=true
+
+helm repo add actions-runner-controller https://actions-runner-controller.github.io/actions-runner-controller
+helm repo update
+kubectl create namespace actions-runner-system
+helm install arc actions-runner-controller/actions-runner-controller --namespace actions-runner-system
+
+kubectl create secret generic controller-manager -n actions-runner-system --from-literal=github_token=ghp_xxxYOURTOKENxxx
+
+runner.yaml
+
+```yaml
+apiVersion: actions.summerwind.dev/v1alpha1
+kind: RunnerDeployment
+metadata:
+  name: custom-runner
+  namespace: actions-runner-system
+spec:
+  replicas: 1
+  template:
+    spec:
+      repository: your-org/your-repo
+      image: your-dockerhub-user/pruebas:latest
+```
+kubectl apply -f runner.yaml
