@@ -82,7 +82,7 @@ settings.py of the Django app
 https://stackoverflow.com/questions/70508568/django-csrf-trusted-origins-not-working-as-expected/70518254
 (last message)
 
-# ACR
+# ARC
 
 Actions Runner Controller (ARC) is a Kubernetes operator that orchestrates and scales self-hosted runners for GitHub Actions.
 
@@ -117,4 +117,15 @@ spec:
       repository: your-org/your-repo
       image: your-dockerhub-user/pruebas:latest
 ```
+kubectl delete -f runner.yaml -n actions-runner-system
 kubectl apply -f runner.yaml
+
+logs
+
+$pod = kubectl get pods -n actions-runner-system --no-headers |
+       Where-Object {$_ -match "^custom-runner"} |
+       ForEach-Object {($_ -split "\s+")[0]} |
+       Select-Object -First 1
+
+kubectl logs $pod -n actions-runner-system -c runner
+kubectl describe pod $pod -n actions-runner-system

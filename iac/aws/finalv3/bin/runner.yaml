@@ -9,3 +9,4 @@ spec:
     spec:
       repository: JavierGarAgu/devops-project-v2
       image: pruebas:latest
+      imagePullPolicy: Never

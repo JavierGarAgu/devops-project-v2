@@ -1,0 +1,28 @@
+githubConfigUrl: "https://github.com/JavierGarAgu/devops-project-v2"
+githubConfigSecret:
+  name: controller-manager
+  key: github_token
+  
+runner:
+  image: "pruebas:latest"
+  imagePullPolicy: "IfNotPresent"
+  labels: ["self-hosted", "custom"]
+  workDir: "/runner/_work"
+  ephemeral: true
+  env:
+    - name: RUNNER_NAME
+      value: "custom-runner"
+    - name: RUNNER_GROUP
+      value: "default"
+    - name: RUNNER_WORKDIR
+      value: "/runner/_work"
+    - name: RUNNER_STATUS_UPDATE_HOOK
+      value: "false"
+    - name: GITHUB_ACTIONS_RUNNER_EXTRA_USER_AGENT
+      value: "actions-runner-controller/v0.27.6"
+    - name: DOCKER_HOST
+      value: "unix:///run/docker.sock"
+    - name: DOCKER_ENABLED
+      value: "true"
+    - name: DOCKERD_IN_RUNNER
+      value: "false"
