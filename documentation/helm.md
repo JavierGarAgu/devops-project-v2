@@ -98,27 +98,28 @@ helm install cert-manager jetstack/cert-manager --namespace cert-manager --set i
 helm repo add actions-runner-controller https://actions-runner-controller.github.io/actions-runner-controller
 helm repo update
 kubectl create namespace actions-runner-system
-helm install arc actions-runner-controller/actions-runner-controller --namespace actions-runner-system
+helm install controller actions-runner-controller/actions-runner-controller --namespace actions-runner-system --create-namespace
+helm uninstall controller --namespace actions-runner-system
 
 kubectl create secret generic controller-manager -n actions-runner-system --from-literal=github_token=ghp_xxxYOURTOKENxxx
 
-runner.yaml
+arc.yaml
 
 ```yaml
 apiVersion: actions.summerwind.dev/v1alpha1
 kind: RunnerDeployment
 metadata:
-  name: custom-runner
+  name: example-runnerdeploy
   namespace: actions-runner-system
 spec:
   replicas: 1
   template:
     spec:
-      repository: your-org/your-repo
-      image: your-dockerhub-user/pruebas:latest
+      repository: JavierGarAgu/devops-project-v2
 ```
+
 kubectl delete -f runner.yaml -n actions-runner-system
-kubectl apply -f runner.yaml
+kubectl apply -f arc.yaml
 
 logs
 
@@ -129,3 +130,15 @@ $pod = kubectl get pods -n actions-runner-system --no-headers |
 
 kubectl logs $pod -n actions-runner-system -c runner
 kubectl describe pod $pod -n actions-runner-system
+
+https://dev.to/ashokan/kubernetes-hosted-runners-for-github-actions-with-arc-g8a
+https://medium.com/simform-engineering/how-to-setup-self-hosted-github-action-runner-on-kubernetes-c8825ccbb63c
+https://actions-runner-controller.github.io/actions-runner-controller/
+
+Install Custom Resource Definitions  (RunnerDeployment)
+
+summerwind/actions-runner:latest is the default image for runner, so, to bake a custom image its a good practice to do it similar than the default image
+
+The runner Dockerfiles can be found here: https://github.com/actions/actions-runner-controller/tree/master/runner and based on the Digest of the tags this is the actual latest: https://github.com/actions/actions-runner-controller/blob/master/runner/actions-runner.ubuntu-20.04.dockerfile
+
+
