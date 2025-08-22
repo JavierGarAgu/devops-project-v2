@@ -23,6 +23,15 @@ minikube delete
 
 minikube start
 
+### force docker desktop restart
+
+# Stop Docker Desktop
+Stop-Process -Name "Docker Desktop" -Force
+
+# Start Docker Desktop
+Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+
+
 ### psql manual load sql (is in dam app project)
 
 CREATE DATABASE final_project
@@ -124,7 +133,7 @@ kubectl apply -f arc.yaml
 logs
 
 $pod = kubectl get pods -n actions-runner-system --no-headers |
-       Where-Object {$_ -match "^custom-runner"} |
+       Where-Object {$_ -match "^example-runnerdeploy-"} |
        ForEach-Object {($_ -split "\s+")[0]} |
        Select-Object -First 1
 
@@ -134,11 +143,17 @@ kubectl describe pod $pod -n actions-runner-system
 https://dev.to/ashokan/kubernetes-hosted-runners-for-github-actions-with-arc-g8a
 https://medium.com/simform-engineering/how-to-setup-self-hosted-github-action-runner-on-kubernetes-c8825ccbb63c
 https://actions-runner-controller.github.io/actions-runner-controller/
+https://pkg.go.dev/github.com/actions-runner-controller/actions-runner-controller#section-readme
+
 
 Install Custom Resource Definitions  (RunnerDeployment)
 
 summerwind/actions-runner:latest is the default image for runner, so, to bake a custom image its a good practice to do it similar than the default image
 
 The runner Dockerfiles can be found here: https://github.com/actions/actions-runner-controller/tree/master/runner and based on the Digest of the tags this is the actual latest: https://github.com/actions/actions-runner-controller/blob/master/runner/actions-runner.ubuntu-20.04.dockerfile
+
+build the image:
+
+docker build --no-cache -t pruebas:latest --build-arg RUNNER_VERSION=2.319.1 --build-arg RUNNER_CONTAINER_HOOKS_VERSION=0.4.0
 
 

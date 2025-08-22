@@ -19,8 +19,8 @@ ENV ImageOS=amazonlinux2023
 # Install basic tools, git, curl, python3, etc.
 RUN dnf update -y \
     && dnf install -y \
+        libicu \
         git \
-        curl \
         jq \
         tar \
         unzip \
@@ -50,7 +50,7 @@ RUN dnf update -y \
 
 # Add runner user and docker group
 RUN groupadd -g $DOCKER_GID docker \
-    && useradd -m -u $RUNNER_UID -G docker,sudo runner \
+    && useradd -m -u $RUNNER_UID -G docker,wheel runner \
     && echo "%wheel   ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers \
     && echo "Defaults env_keep += \"HOME PATH\"" >> /etc/sudoers
 
@@ -72,8 +72,8 @@ RUN ARCH=$(echo ${TARGETPLATFORM} | cut -d / -f2) \
     && cd "$RUNNER_ASSETS_DIR" \
     && curl -fLo runner.tar.gz https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-${ARCH}-${RUNNER_VERSION}.tar.gz \
     && tar xzf runner.tar.gz \
-    && rm runner.tar.gz \
-    && ./bin/installdependencies.sh
+    && rm runner.tar.gz
+#    && ./bin/installdependencies.sh
 
 # Install runner container hooks
 RUN cd "$RUNNER_ASSETS_DIR" \
