@@ -706,3 +706,16 @@ psql -h host -U user -d postgres -f init.sql
 ![](../documentation/aws-images/29.png)
 
 
+# S3
+
+S3 bucket is an AWS storage, in this case it will be used to storage terraform.tfstate
+
+![](./aws-images/30.png)
+
+# Import the S3 bucket into Terraform
+terraform import aws_s3_bucket.tf_state tfstate-devopsv2-abcd
+
+# Import the DynamoDB table into Terraform
+terraform import aws_dynamodb_table.tf_locks terraform-locks-abcd
+
+
