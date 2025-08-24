@@ -1,0 +1,12 @@
+name: test
+
+on:
+  workflow_call:
+
+jobs:
+  check-vm:
+    runs-on: [self-hosted]
+    steps:
+      - name: Test that runner works
+        run: |
+          echo "ITS WORKING"

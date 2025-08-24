@@ -108,6 +108,7 @@ helm repo add actions-runner-controller https://actions-runner-controller.github
 helm repo update
 kubectl create namespace actions-runner-system
 helm install controller actions-runner-controller/actions-runner-controller --namespace actions-runner-system --create-namespace
+
 helm uninstall controller --namespace actions-runner-system
 
 kubectl create secret generic controller-manager -n actions-runner-system --from-literal=github_token=ghp_xxxYOURTOKENxxx
@@ -127,7 +128,7 @@ spec:
       repository: JavierGarAgu/devops-project-v2
 ```
 
-kubectl delete -f runner.yaml -n actions-runner-system
+kubectl delete -f arc.yaml -n actions-runner-system
 kubectl apply -f arc.yaml
 
 logs
@@ -154,6 +155,8 @@ The runner Dockerfiles can be found here: https://github.com/actions/actions-run
 
 build the image:
 
-docker build --no-cache -t pruebas:latest --build-arg RUNNER_VERSION=2.319.1 --build-arg RUNNER_CONTAINER_HOOKS_VERSION=0.4.0
+& minikube -p minikube docker-env | Invoke-Expression
+docker build --no-cache -t pruebas:latest --build-arg RUNNER_VERSION=2.319.1 --build-arg RUNNER_CONTAINER_HOOKS_VERSION=0.4.0 .
+
 
 
