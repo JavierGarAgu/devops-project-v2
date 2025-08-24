@@ -10,3 +10,4 @@ jobs:
       - name: Test that runner works
         run: |
           echo "ITS WORKING"
+          (cat /etc/os-release 2>/dev/null || cat /etc/system-release 2>/dev/null || uname -a)
