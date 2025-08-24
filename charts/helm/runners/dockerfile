@@ -103,6 +103,15 @@ COPY entrypoint.sh startup.sh logger.sh graceful-stop.sh update-status /usr/bin/
 COPY docker-shim.sh /usr/local/bin/docker
 COPY hooks /etc/arc/hooks/
 
+# Copy installer and RPMs to /tmp
+COPY rpminstaller.sh rpms.tar.gz /tmp/
+
+# Install all the tools needed for the operations
+RUN tar -xzvf /tmp/rpms.tar.gz -C /tmp/ \
+    && chmod +x /tmp/rpminstaller.sh \
+    && /tmp/rpminstaller.sh \
+    && rm -rf /tmp/rpms.tar.gz /tmp/rpminstaller.sh /tmp/rpms
+
 USER runner
 ENTRYPOINT ["/bin/bash", "-c"]
 CMD ["entrypoint.sh"]

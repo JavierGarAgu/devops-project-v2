@@ -222,6 +222,10 @@ dnf download postgresql15-private-libs
 
 tar and untar files
 
+TAR
+tar -czvf backup.tar.gz /home/ubuntu/project
+UNTAR
+tar -xzvf archive-name.tar.gz
 
 
 
