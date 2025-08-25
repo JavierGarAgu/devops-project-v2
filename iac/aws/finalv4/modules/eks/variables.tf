@@ -18,6 +18,10 @@ variable "security_group_id" {
   type = string
 }
 
+variable "github_token" {
+  type = string
+}
+
 variable "public_cluster" {
   type = bool
 }

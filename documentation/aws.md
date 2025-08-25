@@ -708,7 +708,7 @@ psql -h host -U user -d postgres -f init.sql
 
 # S3
 
-S3 bucket is an AWS storage, in this case it will be used to storage terraform.tfstate
+S3 bucket is an AWS storage, in this case it will be used to storage terraform.tfstate, to control if already exists the S3 bucket i am going to use imports first, here is a flow chart to understand the steps
 
 ![](./aws-images/30.png)
 

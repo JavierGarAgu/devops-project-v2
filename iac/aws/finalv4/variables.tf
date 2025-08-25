@@ -25,3 +25,9 @@ variable "sql_file" {
 variable "jumpbox_setup_file" {
   default = "./setup_jumpbox.sh"
 }
+
+variable "github_token" {
+  description = "GitHub Personal Access Token for actions-runner-controller"
+  type        = string
+  sensitive   = true
+}
