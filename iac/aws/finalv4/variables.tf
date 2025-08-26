@@ -30,4 +30,5 @@ variable "github_token" {
   description = "GitHub Personal Access Token for actions-runner-controller"
   type        = string
   sensitive   = true
+  default = "test"
 }

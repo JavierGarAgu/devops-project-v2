@@ -1,25 +1,6 @@
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.12"
-    }
-  }
-  required_version = ">= 1.5.0"
-}
-
-provider "aws" {
-  region = "us-east-1"
-}
-
+# -----------------------------
+# EKS Cluster
+# -----------------------------
 resource "aws_eks_cluster" "this" {
   name     = var.cluster_name
   role_arn = var.cluster_role_arn
@@ -35,6 +16,9 @@ resource "aws_eks_cluster" "this" {
   depends_on = [var.cluster_role_arn]
 }
 
+# -----------------------------
+# Providers
+# -----------------------------
 provider "kubernetes" {
   host                   = aws_eks_cluster.this.endpoint
   cluster_ca_certificate = base64decode(aws_eks_cluster.this.certificate_authority[0].data)
@@ -59,7 +43,9 @@ provider "helm" {
   }
 }
 
-# aws-auth configmap
+# -----------------------------
+# aws-auth ConfigMap
+# -----------------------------
 resource "kubernetes_config_map" "aws_auth" {
   metadata {
     name      = "aws-auth"
@@ -85,39 +71,83 @@ resource "kubernetes_config_map" "aws_auth" {
 }
 
 # -----------------------------
-# CERT-MANAGER Helm chart
+# Namespace for cert-manager
+# -----------------------------
+resource "kubernetes_namespace" "cert_manager" {
+  metadata {
+    name = "cert-manager"
+  }
+
+  depends_on = [kubernetes_config_map.aws_auth]
+}
+
+# -----------------------------
+# CRDs for cert-manager (official k8s provider)
+# -----------------------------
+locals {
+  crd_docs = [
+    for doc in split("---", file("./bin/cert-manager.crds.yaml")) :
+    yamldecode(doc)
+    if trimspace(doc) != ""
+  ]
+}
+
+resource "kubernetes_manifest" "cert_manager_crds" {
+  for_each = { for idx, crd in local.crd_docs : idx => crd }
+  manifest = each.value
+  depends_on = [kubernetes_namespace.cert_manager]
+}
+
+# -----------------------------
+# Helm release for cert-manager
 # -----------------------------
 resource "helm_release" "cert_manager" {
-  name       = "cert-manager"
-  repository = "https://charts.jetstack.io"
-  chart      = "cert-manager"
-  namespace  = "cert-manager"
-  create_namespace = true
+  name             = "cert-manager"
+  repository       = "https://charts.jetstack.io"
+  chart            = "cert-manager"
+  namespace        = kubernetes_namespace.cert_manager.metadata[0].name
+  create_namespace = false
 
-  set {
-    name  = "installCRDs"
-    value = "true"
-  }
+  wait    = true
+  timeout = 600
+
+  depends_on = [kubernetes_manifest.cert_manager_crds]
 }
 
 # -----------------------------
-# ACTIONS RUNNER CONTROLLER
+# Namespace for Actions Runner Controller (ARC)
+# -----------------------------
+resource "kubernetes_namespace" "arc" {
+  metadata {
+    name = "actions-runner-system"
+  }
+
+  depends_on = [helm_release.cert_manager]
+}
+
+# -----------------------------
+# Helm release for ARC
 # -----------------------------
 resource "helm_release" "arc" {
-  name       = "controller"
-  repository = "https://actions-runner-controller.github.io/actions-runner-controller"
-  chart      = "actions-runner-controller"
-  namespace  = "actions-runner-system"
-  create_namespace = true
+  name             = "controller"
+  repository       = "https://actions-runner-controller.github.io/actions-runner-controller"
+  chart            = "actions-runner-controller"
+  namespace        = kubernetes_namespace.arc.metadata[0].name
+  create_namespace = false
+
+  wait    = true
+  timeout = 600
+
+  depends_on = [kubernetes_namespace.arc]
 }
 
 # -----------------------------
-# Secret for GitHub Token
+# GitHub Token Secret for ARC
 # -----------------------------
 resource "kubernetes_secret" "arc_github_token" {
   metadata {
     name      = "controller-manager"
-    namespace = "actions-runner-system"
+    namespace = kubernetes_namespace.arc.metadata[0].name
   }
 
   data = {
