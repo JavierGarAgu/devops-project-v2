@@ -159,4 +159,10 @@ build the image:
 docker build --no-cache -t pruebas:latest --build-arg RUNNER_VERSION=2.319.1 --build-arg RUNNER_CONTAINER_HOOKS_VERSION=0.4.0 .
 
 
+some documentation
+
+https://stackoverflow.com/questions/75057349/how-to-apply-yaml-file-on-terraform
+https://registry.terraform.io/providers/hashicorp/kubernetes/2.25.1/docs/resources/manifest
+https://stackoverflow.com/questions/79128174/using-same-terraform-project-to-create-the-kubernetes-infrastructure-and-deploy
+
 
