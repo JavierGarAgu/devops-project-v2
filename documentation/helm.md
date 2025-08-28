@@ -165,4 +165,33 @@ https://stackoverflow.com/questions/75057349/how-to-apply-yaml-file-on-terraform
 https://registry.terraform.io/providers/hashicorp/kubernetes/2.25.1/docs/resources/manifest
 https://stackoverflow.com/questions/79128174/using-same-terraform-project-to-create-the-kubernetes-infrastructure-and-deploy
 
+ACTUAL PROBLEMS:
+
+The user alexsomesan from [this issue](https://github.com/hashicorp/terraform-provider-kubernetes/issues/1775#issuecomment-1193859982) explained it perfectly; "The kubernetes_manifest resource needs access to the API server of the cluster during planning. This is because, in order to support CRDs in Terraform ecosystem, we need to pull the schema information for each manifest resource at runtime (during planing).
+
+AFAICS, every person who reported seeing similar issues above, configures the attributes of the provider "kubernetes" {..} block using references to other resources' attributes. You can only do this if the referenced resource (the cluster in this case) IS ALREADY PRESENT before you start planing / applying any of the kubernetes_manifest resources. You can achieve this as simply as using the -target CLI argument to Terraform to limit the scope of the first apply to just the cluster and it's direct dependencies. Then you follow up with a second apply without a -target argument and this constructs the rest of the resources (manifest & others). You will end up with a single state file and subsequent updates no longer require this two-step approach as long as the cluster resource is present.
+
+This limitation is stemming from Terraform itself, and the provider tries to push things as far as it can, but there is no way around needing access to schema from the API (Terraform is fundamentally a strongly-typed / schema based system)."
+
+that explains everything of this error:
+
+│ Error: Failed to construct REST client
+│
+│   with module.eks.kubernetes_manifest.cert_manager_crds["3"],
+│   on modules\eks\main.tf line 95, in resource "kubernetes_manifest" "cert_manager_crds":
+│   95: resource "kubernetes_manifest" "cert_manager_crds" {
+│
+│ cannot create REST client: no client config
+
+
+So we have two options, or create the flow in two different steps, one for the creation of EKS cluster and another for the manifest or my actual option, use extern provider to supply a direct solution
+
+KUBECTL_MANIFEST BY GAVINBUNNEY
+
+https://github.com/gavinbunney/terraform-provider-kubectl
+https://registry.terraform.io/providers/gavinbunney/kubectl/latest
+
+To use external provider we need to include it in Terraform plugin folder on your system
+
+https://github.com/gavinbunney/terraform-provider-kubectl/releases
 

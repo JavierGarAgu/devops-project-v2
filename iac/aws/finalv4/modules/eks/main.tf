@@ -1,10 +1,21 @@
+terraform {
+  required_version = ">= 0.13"
+
+  required_providers {
+    kubectl = {
+      source  = "gavinbunney/kubectl"
+      version = ">= 1.19.0"
+    }
+  }
+}
+
 # -----------------------------
 # EKS Cluster
 # -----------------------------
 resource "aws_eks_cluster" "this" {
   name     = var.cluster_name
   role_arn = var.cluster_role_arn
-  version  = "1.30"
+  version  = "1.33"
 
   vpc_config {
     subnet_ids              = var.subnet_ids
@@ -30,15 +41,33 @@ provider "kubernetes" {
   }
 }
 
+
+provider "kubectl" {
+  host                   = aws_eks_cluster.this.endpoint
+  cluster_ca_certificate = base64decode(aws_eks_cluster.this.certificate_authority[0].data)
+  load_config_file       = false
+
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.this.name]
+  }
+}
+
 provider "helm" {
-  kubernetes {
+  kubernetes = {
     host                   = aws_eks_cluster.this.endpoint
     cluster_ca_certificate = base64decode(aws_eks_cluster.this.certificate_authority[0].data)
 
-    exec {
+    exec = {
       api_version = "client.authentication.k8s.io/v1beta1"
       command     = "aws"
-      args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.this.name]
+      args        = [
+        "eks",
+        "get-token",
+        "--cluster-name",
+        aws_eks_cluster.this.name
+      ]
     }
   }
 }
@@ -73,45 +102,45 @@ resource "kubernetes_config_map" "aws_auth" {
 # -----------------------------
 # Namespace for cert-manager
 # -----------------------------
-resource "kubernetes_namespace" "cert_manager" {
-  metadata {
-    name = "cert-manager"
-  }
-
-  depends_on = [kubernetes_config_map.aws_auth]
-}
 
 # -----------------------------
-# CRDs for cert-manager (official k8s provider)
+# Download and apply cert-manager CRDs
 # -----------------------------
-locals {
-  crd_docs = [
-    for doc in split("---", file("./bin/cert-manager.crds.yaml")) :
-    yamldecode(doc)
-    if trimspace(doc) != ""
-  ]
-}
+# data "http" "cert_manager_crds" {
+#   url = "https://github.com/cert-manager/cert-manager/releases/download/v1.6.3/cert-manager.crds.yaml"
+# }
 
-resource "kubernetes_manifest" "cert_manager_crds" {
-  for_each = { for idx, crd in local.crd_docs : idx => crd }
-  manifest = each.value
-  depends_on = [kubernetes_namespace.cert_manager]
-}
+# data "kubectl_file_documents" "cert_manager_crds" {
+#   content = data.http.cert_manager_crds.body
+# }
+
+# resource "kubectl_manifest" "cert_manager_crds" {
+#   for_each           = data.kubectl_file_documents.cert_manager_crds.manifests
+#   yaml_body          = each.value
+#   server_side_apply  = true
+#   force_new          = true
+#   depends_on         = [kubernetes_namespace.cert_manager]
+# }
+
 
 # -----------------------------
 # Helm release for cert-manager
 # -----------------------------
+
 resource "helm_release" "cert_manager" {
   name             = "cert-manager"
   repository       = "https://charts.jetstack.io"
   chart            = "cert-manager"
-  namespace        = kubernetes_namespace.cert_manager.metadata[0].name
-  create_namespace = false
+  version          = "v1.18.2"
+  create_namespace = true
+  namespace        = "cert-manager"
+  cleanup_on_fail  = true
 
-  wait    = true
-  timeout = 600
-
-  depends_on = [kubernetes_manifest.cert_manager_crds]
+  set = [ {
+    name  = "installCRDs"
+    value = true
+  } ]
+  depends_on = [kubernetes_config_map.aws_auth]
 }
 
 # -----------------------------
@@ -126,7 +155,7 @@ resource "kubernetes_namespace" "arc" {
 }
 
 # -----------------------------
-# Helm release for ARC
+# ARC Helm release
 # -----------------------------
 resource "helm_release" "arc" {
   name             = "controller"
