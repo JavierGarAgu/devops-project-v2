@@ -27,6 +27,22 @@ resource "aws_eks_cluster" "this" {
   depends_on = [var.cluster_role_arn]
 }
 
+resource "aws_eks_node_group" "default" {
+  cluster_name    = aws_eks_cluster.this.name
+  node_group_name = "${var.cluster_name}-ng"
+  node_role_arn   = var.node_role_arn
+  subnet_ids      = var.subnet_ids
+  scaling_config {
+    desired_size = 1
+    max_size     = 1
+    min_size     = 1
+  }
+
+  instance_types = ["t3.small"]
+
+  depends_on = [aws_eks_cluster.this]
+}
+
 # -----------------------------
 # Providers
 # -----------------------------
@@ -40,7 +56,6 @@ provider "kubernetes" {
     args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.this.name]
   }
 }
-
 
 provider "kubectl" {
   host                   = aws_eks_cluster.this.endpoint
@@ -92,6 +107,11 @@ resource "kubernetes_config_map" "aws_auth" {
         rolearn  = var.jumpbox_role_arn
         username = "jumpbox"
         groups   = ["system:masters"]
+      },
+      {
+        rolearn  = var.node_role_arn
+        username = "system:node:{{EC2PrivateDNSName}}"
+        groups   = ["system:bootstrappers", "system:nodes"]
       }
     ])
   }
@@ -122,11 +142,9 @@ resource "kubernetes_config_map" "aws_auth" {
 #   depends_on         = [kubernetes_namespace.cert_manager]
 # }
 
-
 # -----------------------------
 # Helm release for cert-manager
 # -----------------------------
-
 resource "helm_release" "cert_manager" {
   name             = "cert-manager"
   repository       = "https://charts.jetstack.io"
@@ -140,7 +158,7 @@ resource "helm_release" "cert_manager" {
     name  = "installCRDs"
     value = true
   } ]
-  depends_on = [kubernetes_config_map.aws_auth]
+  depends_on = [aws_eks_node_group.default]
 }
 
 # -----------------------------

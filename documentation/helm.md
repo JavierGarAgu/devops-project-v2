@@ -195,3 +195,38 @@ To use external provider we need to include it in Terraform plugin folder on you
 
 https://github.com/gavinbunney/terraform-provider-kubectl/releases
 
+CERT MANAGER MANAGE PROBLEMS
+
+helm history cert-manager -n cert-manager
+helm status cert-manager -n cert-manager
+helm list -n cert-manager
+
+kubectl get all -n cert-manager
+kubectl get pods -n cert-manager -o wide
+kubectl describe pod -n cert-manager cert-manager-58dd99f969-6p67b
+kubectl describe pod -n cert-manager cert-manager-cainjector-55cd9f77b5-77vkq
+kubectl describe pod -n cert-manager cert-manager-webhook-7987476d56-5nrp6
+
+kubectl get nodes -o wide
+kubectl describe node <your-node-name>
+kubectl get events -A --sort-by=.metadata.creationTimestamp
+
+
+AWS NODE GROUP PROBLEMS SOLUTION
+
+aws autoscaling delete-auto-scaling-group --auto-scaling-group-name eks-my-private-eks-ng-72cc7b0a-a253-540f-489b-72ee3dc4ac7b --force-delete --region eu-north-1
+
+aws ec2 delete-launch-template --launch-template-id lt-0ccb1c17a7aa929ad --region eu-north-1
+
+aws eks delete-nodegroup --cluster-name my-private-eks --nodegroup-name my-private-eks-ng --region eu-north-1
+
+aws eks describe-nodegroup --cluster-name my-private-eks --nodegroup-name my-private-eks-ng --region eu-north-1
+
+aws eks delete-cluster --name my-private-eks --region eu-north-1
+
+
+Delete the autoscaling group for the node group and force delete it so it removes all instances.
+Delete the EC2 launch template that was used by the node group.
+Delete the EKS node group from the cluster.
+Check the status of the EKS node group to make sure it is deleted or still deleting.
+Finally, delete the EKS cluster itself.

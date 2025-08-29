@@ -24,6 +24,7 @@ data "aws_region" "current" {}
 module "network" {
   source = "./modules/network"
   region = var.region
+  cluster_name = var.cluster_name
 }
 
 module "iam" {
@@ -52,6 +53,7 @@ module "eks" {
   subnet_ids         = module.network.eks_subnet_ids
   cluster_role_arn   = module.iam.eks_cluster_role_arn
   jumpbox_role_arn   = module.iam.jumpbox_role_arn
+  node_role_arn      = module.iam.eks_node_role_arn
   security_group_id  = module.security.eks_sg_id
   public_cluster     = var.public_cluster
   github_token       = var.github_token
