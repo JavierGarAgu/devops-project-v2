@@ -185,7 +185,7 @@ resource "helm_release" "arc" {
   wait    = true
   timeout = 600
 
-  depends_on = [kubernetes_namespace.arc]
+  depends_on = [kubernetes_secret.arc_github_token]
 }
 
 # -----------------------------
@@ -203,5 +203,5 @@ resource "kubernetes_secret" "arc_github_token" {
 
   type = "Opaque"
 
-  depends_on = [helm_release.arc]
+  depends_on = [kubernetes_namespace.arc]
 }

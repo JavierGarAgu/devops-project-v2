@@ -211,8 +211,16 @@ kubectl get nodes -o wide
 kubectl describe node <your-node-name>
 kubectl get events -A --sort-by=.metadata.creationTimestamp
 
+ARC MANAGE PROBLEMS
 
-AWS NODE GROUP PROBLEMS SOLUTION
+kubectl describe pod -n actions-runner-system
+kubectl get events -n actions-runner-system --sort-by=.metadata.creationTimestamp
+kubectl logs -n actions-runner-system pod/controller-actions-runner-controller-b97b7d8bf-6ghf9 -c manager
+helm list -n actions-runner-system
+helm uninstall actions-runner-controller -n actions-runner-system
+kubectl delete namespace actions-runner-system
+
+AWS NODE GROUP PROBLEM BLOCK SOLUTION
 
 aws autoscaling delete-auto-scaling-group --auto-scaling-group-name eks-my-private-eks-ng-72cc7b0a-a253-540f-489b-72ee3dc4ac7b --force-delete --region eu-north-1
 
