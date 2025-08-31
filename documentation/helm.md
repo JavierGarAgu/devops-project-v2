@@ -224,7 +224,7 @@ AWS NODE GROUP PROBLEM BLOCK SOLUTION
 
 aws autoscaling delete-auto-scaling-group --auto-scaling-group-name eks-my-private-eks-ng-72cc7b0a-a253-540f-489b-72ee3dc4ac7b --force-delete --region eu-north-1
 
-aws ec2 delete-launch-template --launch-template-id lt-0ccb1c17a7aa929ad --region eu-north-1
+aws ec2 delete-launch-template --launch-template-id lt-064ec842ccf46c0a7 --region eu-north-1
 
 aws eks delete-nodegroup --cluster-name my-private-eks --nodegroup-name my-private-eks-ng --region eu-north-1
 

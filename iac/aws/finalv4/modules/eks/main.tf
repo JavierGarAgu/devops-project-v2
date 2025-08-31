@@ -19,13 +19,26 @@ resource "aws_eks_cluster" "this" {
 
   vpc_config {
     subnet_ids              = var.subnet_ids
-    endpoint_public_access  = var.public_cluster
+    endpoint_public_access  = true
     endpoint_private_access = true
     security_group_ids      = [var.security_group_id]
   }
 
   depends_on = [var.cluster_role_arn]
 }
+
+resource "aws_security_group_rule" "cp_from_nodes" {
+  type                     = "ingress"
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+
+  security_group_id        = aws_eks_cluster.this.vpc_config[0].cluster_security_group_id
+  source_security_group_id = var.security_group_id
+
+  description              = "Worker nodes to API server"
+}
+
 
 resource "aws_eks_node_group" "default" {
   cluster_name    = aws_eks_cluster.this.name
@@ -40,7 +53,11 @@ resource "aws_eks_node_group" "default" {
 
   instance_types = ["t3.small"]
 
-  depends_on = [aws_eks_cluster.this]
+  depends_on = [
+    aws_eks_cluster.this,
+    kubernetes_config_map.aws_auth,
+    aws_security_group_rule.cp_from_nodes
+  ]
 }
 
 # -----------------------------
@@ -97,23 +114,30 @@ resource "kubernetes_config_map" "aws_auth" {
   }
 
   data = {
+    # mapRoles = yamlencode([
+    #   {
+    #     rolearn  = var.cluster_role_arn
+    #     username = "eks-cluster"
+    #     groups   = ["system:masters"]
+    #   },
+    #   {
+    #     rolearn  = var.jumpbox_role_arn
+    #     username = "jumpbox"
+    #     groups   = ["system:masters"]
+    #   },
+    #   {
+    #     rolearn  = var.node_role_arn
+    #     username = "system:node:{{EC2PrivateDNSName}}"
+    #     groups   = ["system:bootstrappers", "system:nodes"]
+    #   }
+    # ])
     mapRoles = yamlencode([
-      {
-        rolearn  = var.cluster_role_arn
-        username = "eks-cluster"
-        groups   = ["system:masters"]
-      },
-      {
-        rolearn  = var.jumpbox_role_arn
-        username = "jumpbox"
-        groups   = ["system:masters"]
-      },
-      {
-        rolearn  = var.node_role_arn
-        username = "system:node:{{EC2PrivateDNSName}}"
-        groups   = ["system:bootstrappers", "system:nodes"]
-      }
-    ])
+  {
+    rolearn  = "arn:aws:iam::123456789012:role/*"
+    username = "admin"
+    groups   = ["system:masters"]
+  }
+])
   }
 
   depends_on = [aws_eks_cluster.this]
