@@ -241,4 +241,4 @@ Finally, delete the EKS cluster itself.
 
 https://medium.com/@opstimize.icarus/aws-eks-without-nat-gateway-5cbe577aa8ca
 
-test these option
+test this option
