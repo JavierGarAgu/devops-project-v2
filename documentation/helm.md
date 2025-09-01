@@ -242,3 +242,12 @@ Finally, delete the EKS cluster itself.
 https://medium.com/@opstimize.icarus/aws-eks-without-nat-gateway-5cbe577aa8ca
 
 test this option
+
+NodeCreationFailure
+Your launched instances are unable to register with your Amazon EKS cluster. Common causes of this failure are insufficient node IAM role permissions or lack of outbound internet access for the nodes. Your nodes must meet either of the following requirements:
+
+Able to access the internet using a public IP address. The security group associated to the subnet the node is in must allow the communication. For more information, see Subnet requirements and considerations and View Amazon EKS security group requirements for clusters.
+
+Your nodes and VPC must meet the requirements in Deploy private clusters with limited internet access.
+
+https://docs.aws.amazon.com/eks/latest/userguide/troubleshooting.html#worker-node-fail
