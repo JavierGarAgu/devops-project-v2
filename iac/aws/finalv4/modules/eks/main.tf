@@ -10,6 +10,14 @@ terraform {
 }
 
 # -----------------------------
+# EC2 Key Pair for SSH access
+# -----------------------------
+resource "aws_key_pair" "kube_demo" {
+  key_name   = "kube-demo"
+  public_key = file("~/.ssh/kube-demo.pub") # Replace with the path to your public key
+}
+
+# -----------------------------
 # EKS Cluster
 # -----------------------------
 resource "aws_eks_cluster" "this" {
@@ -39,6 +47,15 @@ resource "aws_security_group_rule" "cp_from_nodes" {
   description              = "Worker nodes to API server"
 }
 
+resource "aws_security_group_rule" "nodes_from_cp_10250" {
+  type                     = "ingress"
+  from_port                = 10250
+  to_port                  = 10250
+  protocol                 = "tcp"
+  security_group_id        = var.security_group_id
+  source_security_group_id = aws_eks_cluster.this.vpc_config[0].cluster_security_group_id
+  description              = "EKS control plane to kubelet"
+}
 
 resource "aws_eks_node_group" "default" {
   cluster_name    = aws_eks_cluster.this.name
@@ -52,6 +69,48 @@ resource "aws_eks_node_group" "default" {
   }
 
   instance_types = ["t3.small"]
+
+  depends_on = [
+    aws_eks_cluster.this,
+    kubernetes_config_map.aws_auth,
+    aws_security_group_rule.cp_from_nodes
+  ]
+}
+
+resource "aws_eks_node_group" "private1" {
+  cluster_name    = aws_eks_cluster.this.name
+  node_group_name = "${var.cluster_name}-ng-private1"
+  node_role_arn   = var.node_role_arn
+  subnet_ids      = var.subnet_ids
+
+  # Scaling configuration
+  scaling_config {
+    desired_size = 2
+    min_size     = 2
+    max_size     = 4
+  }
+
+  # EC2 instance type
+  instance_types = ["t3.medium"]
+
+  # Node volume
+  disk_size = 20
+
+  # SSH access
+  remote_access {
+    ec2_ssh_key = aws_key_pair.kube_demo.key_name
+  }
+
+  # Networking
+  ami_type      = "AL2_x86_64"
+  capacity_type = "ON_DEMAND"
+
+  # IAM / Access permissions
+  tags = {
+    "k8s.io/cluster-autoscaler/enabled" = "true"
+  }
+
+  force_update_version = true
 
   depends_on = [
     aws_eks_cluster.this,
@@ -114,30 +173,18 @@ resource "kubernetes_config_map" "aws_auth" {
   }
 
   data = {
-    # mapRoles = yamlencode([
-    #   {
-    #     rolearn  = var.cluster_role_arn
-    #     username = "eks-cluster"
-    #     groups   = ["system:masters"]
-    #   },
-    #   {
-    #     rolearn  = var.jumpbox_role_arn
-    #     username = "jumpbox"
-    #     groups   = ["system:masters"]
-    #   },
-    #   {
-    #     rolearn  = var.node_role_arn
-    #     username = "system:node:{{EC2PrivateDNSName}}"
-    #     groups   = ["system:bootstrappers", "system:nodes"]
-    #   }
-    # ])
     mapRoles = yamlencode([
-  {
-    rolearn  = "arn:aws:iam::123456789012:role/*"
-    username = "admin"
-    groups   = ["system:masters"]
-  }
-])
+      {
+        rolearn  = var.cluster_role_arn
+        username = "cluster"
+        groups   = ["system:masters"]
+      },
+      {
+        rolearn  = var.node_role_arn
+        username = "node"
+        groups   = ["system:masters"]
+      }
+    ])
   }
 
   depends_on = [aws_eks_cluster.this]
@@ -178,10 +225,10 @@ resource "helm_release" "cert_manager" {
   namespace        = "cert-manager"
   cleanup_on_fail  = true
 
-  set = [ {
+  set = [{
     name  = "installCRDs"
     value = true
-  } ]
+  }]
   depends_on = [aws_eks_node_group.default]
 }
 

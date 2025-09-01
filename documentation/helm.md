@@ -238,3 +238,7 @@ Delete the EC2 launch template that was used by the node group.
 Delete the EKS node group from the cluster.
 Check the status of the EKS node group to make sure it is deleted or still deleting.
 Finally, delete the EKS cluster itself.
+
+https://medium.com/@opstimize.icarus/aws-eks-without-nat-gateway-5cbe577aa8ca
+
+test these option
