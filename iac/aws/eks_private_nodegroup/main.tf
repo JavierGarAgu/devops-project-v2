@@ -1,9 +1,16 @@
 terraform {
-  required_version = ">= 1.6.0"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = ">= 5.0"
+      version = "~> 5.0"
+    }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
+    kubectl = {
+      source  = "gavinbunney/kubectl"
+      version = ">= 1.19.0"
     }
   }
 }
@@ -276,6 +283,7 @@ resource "aws_eks_addon" "coredns" {
   cluster_name                = aws_eks_cluster.this.name
   addon_name                  = "coredns"
   resolve_conflicts_on_update = "OVERWRITE"
+  depends_on = [ aws_eks_node_group.private_ng ]
 }
 
 resource "aws_eks_addon" "kube_proxy" {
@@ -294,6 +302,13 @@ resource "aws_eks_addon" "pod_identity_agent" {
   cluster_name                = aws_eks_cluster.this.name
   addon_name                  = "eks-pod-identity-agent"
   resolve_conflicts_on_update = "OVERWRITE"
+}
+
+resource "aws_eks_addon" "cert_manager" {
+  cluster_name                = aws_eks_cluster.this.name
+  addon_name                  = "cert-manager"
+  resolve_conflicts_on_update = "OVERWRITE"
+  depends_on = [ aws_eks_node_group.private_ng ]
 }
 
 resource "aws_iam_role_policy_attachment" "node_worker" {
@@ -326,7 +341,7 @@ resource "aws_eks_cluster" "this" {
       aws_subnet.private2_b.id,
       aws_subnet.private3_c.id
     ]
-    endpoint_public_access  = false
+    endpoint_public_access  = true
     endpoint_private_access = true
   }
 
@@ -355,8 +370,8 @@ resource "aws_eks_node_group" "private_ng" {
   release_version = "1.33.3-20250821"
 
   scaling_config {
-    desired_size = 2
-    min_size     = 2
+    desired_size = 1
+    min_size     = 1
     max_size     = 2
   }
 
@@ -372,6 +387,100 @@ resource "aws_eks_node_group" "private_ng" {
     aws_iam_role_policy_attachment.node_cni
   ]
 }
+
+# -----------------------------
+provider "kubernetes" {
+  host                   = aws_eks_cluster.this.endpoint
+  cluster_ca_certificate = base64decode(aws_eks_cluster.this.certificate_authority[0].data)
+
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.this.name]
+  }
+}
+
+provider "helm" {
+  kubernetes = {
+    host                   = aws_eks_cluster.this.endpoint
+    cluster_ca_certificate = base64decode(aws_eks_cluster.this.certificate_authority[0].data)
+
+    exec = {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      command     = "aws"
+      args        = [
+        "eks",
+        "get-token",
+        "--cluster-name",
+        aws_eks_cluster.this.name
+      ]
+    }
+  }
+}
+
+provider "kubectl" {
+  host                   = aws_eks_cluster.this.endpoint
+  cluster_ca_certificate = base64decode(aws_eks_cluster.this.certificate_authority[0].data)
+  load_config_file       = false
+
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.this.name]
+  }
+}
+
+
+
+resource "kubernetes_namespace" "arc" {
+  metadata {
+    name = "actions-runner-system"
+  }
+    depends_on = [
+    aws_eks_node_group.private_ng,
+    aws_eks_addon.coredns,
+    aws_eks_addon.kube_proxy,
+    aws_eks_addon.vpc_cni,
+    aws_eks_addon.pod_identity_agent,
+    aws_eks_addon.cert_manager
+  ]
+}
+
+# -----------------------------
+# ARC Helm release
+# -----------------------------
+resource "helm_release" "arc" {
+  name             = "controller"
+  repository       = "https://actions-runner-controller.github.io/actions-runner-controller"
+  chart            = "actions-runner-controller"
+  namespace        = kubernetes_namespace.arc.metadata[0].name
+  create_namespace = false
+
+  wait    = true
+  timeout = 600
+
+  depends_on = [kubernetes_secret.arc_github_token]
+}
+
+# -----------------------------
+# GitHub Token Secret for ARC
+# -----------------------------
+resource "kubernetes_secret" "arc_github_token" {
+  metadata {
+    name      = "controller-manager"
+    namespace = kubernetes_namespace.arc.metadata[0].name
+  }
+
+  data = {
+    github_token = var.github_token
+  }
+
+  type = "Opaque"
+
+  depends_on = [kubernetes_namespace.arc]
+}
+
+
 
 # -----------------------
 # Helpful outputs
