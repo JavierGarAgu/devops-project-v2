@@ -12,6 +12,10 @@ terraform {
       source  = "gavinbunney/kubectl"
       version = ">= 1.19.0"
     }
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = "~> 3.0"
+    }
   }
 }
 
@@ -482,6 +486,106 @@ resource "kubernetes_secret" "arc_github_token" {
 
 
 
+# IAM policy for ECR access
+resource "aws_iam_policy" "ecr_access" {
+  name        = "EKSNodeECRAccess"
+  description = "Allow EKS nodes to pull from ECR private repositories"
+  policy      = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = [
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Attach the policy to the EKS node role
+resource "aws_iam_role_policy_attachment" "node_ecr_access" {
+  role       = aws_iam_role.eks_nodes.name
+  policy_arn = aws_iam_policy.ecr_access.arn
+}
+
+
+resource "kubernetes_secret" "ecr_registry" {
+  metadata {
+    name      = "ecr-registry"
+    namespace = "default"
+  }
+
+  type = "kubernetes.io/dockerconfigjson"
+
+  data = {
+    ".dockerconfigjson" = base64encode(jsonencode({
+      auths = {
+        "${aws_ecr_repository.private.repository_url}" = {
+          username = data.aws_ecr_authorization_token.dockertoken.user_name
+          password = data.aws_ecr_authorization_token.dockertoken.password
+          email    = "none"
+        }
+      }
+    }))
+  }
+}
+
+# ECR repository
+resource "aws_ecr_repository" "private" {
+  name                 = "my-private-repo"
+  image_tag_mutability = "MUTABLE"
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name = "my-private-repo"
+  }
+}
+
+
+# Get temporary ECR auth token
+data "aws_ecr_authorization_token" "dockertoken" {}
+
+# First: login to ECR
+resource "null_resource" "docker_login" {
+  provisioner "local-exec" {
+    command = <<EOT
+      cmd /c "aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin ${aws_ecr_repository.private.repository_url}"
+    EOT
+  }
+
+  depends_on = [
+    aws_ecr_repository.private
+  ]
+}
+
+# Second: build the Docker image
+resource "null_resource" "docker_build" {
+  provisioner "local-exec" {
+    command = "docker build -t ${aws_ecr_repository.private.repository_url}:latest ../../../charts/helm/runners"
+  }
+
+  depends_on = [
+    null_resource.docker_login
+  ]
+}
+
+# Third: push the image
+resource "null_resource" "docker_push" {
+  provisioner "local-exec" {
+    command = "docker push ${aws_ecr_repository.private.repository_url}:latest"
+  }
+
+  depends_on = [
+    null_resource.docker_build
+  ]
+}
 # -----------------------
 # Helpful outputs
 # -----------------------
