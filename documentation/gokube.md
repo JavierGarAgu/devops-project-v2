@@ -28,3 +28,5 @@ $env:MINIKUBE_CPUS="2"
 $env:MINIKUBE_MEMORY="6144"
 
 i decided to use that requirement because with the default my pc will explode
+
+![](../documentation/gokube-images/5.png)
