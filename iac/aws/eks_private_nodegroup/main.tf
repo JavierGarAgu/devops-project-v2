@@ -543,6 +543,8 @@ resource "aws_ecr_repository" "private" {
     scan_on_push = true
   }
 
+  force_delete = true # <- this allows deleting all images automatically
+
   tags = {
     Name = "my-private-repo"
   }
