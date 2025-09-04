@@ -556,8 +556,8 @@ data "aws_ecr_authorization_token" "dockertoken" {}
 resource "null_resource" "docker_login" {
   provisioner "local-exec" {
     command = <<EOT
-      cmd /c "aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin ${aws_ecr_repository.private.repository_url}"
-    EOT
+aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin ${aws_ecr_repository.private.repository_url}
+EOT
   }
 
   depends_on = [
@@ -565,10 +565,12 @@ resource "null_resource" "docker_login" {
   ]
 }
 
+
+
 # Second: build the Docker image
 resource "null_resource" "docker_build" {
   provisioner "local-exec" {
-    command = "docker build -t ${aws_ecr_repository.private.repository_url}:latest ../../../charts/helm/runners"
+    command = "docker build --no-cache -t ${aws_ecr_repository.private.repository_url}:latest --build-arg RUNNER_VERSION=2.319.1 --build-arg RUNNER_CONTAINER_HOOKS_VERSION=0.4.0 ../../../charts/helm/runners"
   }
 
   depends_on = [

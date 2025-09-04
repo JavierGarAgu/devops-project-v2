@@ -1,6 +1,6 @@
 #!/bin/bash
 
-RPM_DIR="/usr/bin/rpms"
+RPM_DIR="/tmp/rpms"
 
 # Check if directory exists
 if [[ ! -d "$RPM_DIR" ]]; then

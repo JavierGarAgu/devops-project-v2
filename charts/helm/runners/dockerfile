@@ -44,6 +44,7 @@ RUN dnf update -y \
         iputils \
         procps-ng \
         which \
+        postgresql15 \
         && alternatives --install /usr/bin/python python /usr/bin/python3 1 \
         && alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 \
         && dnf clean all
@@ -103,14 +104,15 @@ COPY entrypoint.sh startup.sh logger.sh graceful-stop.sh update-status /usr/bin/
 COPY docker-shim.sh /usr/local/bin/docker
 COPY hooks /etc/arc/hooks/
 
-# Copy installer and RPMs to /tmp
-COPY rpminstaller.sh rpms.tar.gz /tmp/
+# Install kubectl (x86_64)
+RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+    && chmod +x kubectl \
+    && mv kubectl /usr/local/bin/
 
-# Install all the tools needed for the operations
-RUN tar -xzvf /tmp/rpms.tar.gz -C /tmp/ \
-    && chmod +x /tmp/rpminstaller.sh \
-    && /tmp/rpminstaller.sh \
-    && rm -rf /tmp/rpms.tar.gz /tmp/rpminstaller.sh /tmp/rpms
+# Install Helm (x86_64)
+RUN curl -fsSL https://get.helm.sh/helm-v3.18.4-linux-amd64.tar.gz | tar -xz \
+    && mv linux-amd64/helm /usr/local/bin/ \
+    && rm -rf linux-amd64
 
 USER runner
 ENTRYPOINT ["/bin/bash", "-c"]
