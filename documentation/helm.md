@@ -107,11 +107,14 @@ helm install cert-manager jetstack/cert-manager --namespace cert-manager --set i
 helm repo add actions-runner-controller https://actions-runner-controller.github.io/actions-runner-controller
 helm repo update
 kubectl create namespace actions-runner-system
+
+kubectl create secret generic controller-manager -n actions-runner-system --from-literal=github_token=ghp_xxxYOURTOKENxxx
+
 helm install controller actions-runner-controller/actions-runner-controller --namespace actions-runner-system --create-namespace
 
 helm uninstall controller --namespace actions-runner-system
 
-kubectl create secret generic controller-manager -n actions-runner-system --from-literal=github_token=ghp_xxxYOURTOKENxxx
+
 
 arc.yaml
 
@@ -251,3 +254,110 @@ Able to access the internet using a public IP address. The security group associ
 Your nodes and VPC must meet the requirements in Deploy private clusters with limited internet access.
 
 https://docs.aws.amazon.com/eks/latest/userguide/troubleshooting.html#worker-node-fail
+
+## Problem Summary
+
+I created a runner in the `actions-runner-system` namespace using ARC. Later, I tried deleting the namespace, but it got stuck in `Terminating` because Kubernetes thought there was still a runner resource with finalizers. Even though the runner was deleted, the namespace finalizer reference remained, preventing the namespace from terminating.
+
+### Key Issue
+- `kubectl get ns` showed the namespace as `Terminating` for hours.
+- Attempts to delete or patch the runner kept failing because the webhook service no longer existed.
+- Standard `kubectl delete` or `helm uninstall` commands did not resolve the problem.
+
+---
+
+## Steps Taken to Resolve the Problem
+
+### 1. Verify the stuck namespace
+```powershell
+kubectl get ns
+```
+Output:
+```
+actions-runner-system   Terminating   4h45m
+```
+
+### 2. Attempted deleting the runner
+```powershell
+kubectl delete runners --all -n actions-runner-system
+```
+Output:
+```
+runner.actions.summerwind.dev "example-runnerdeploy-9lnjr-2hhwk" deleted
+```
+> Even though the runner was deleted, the namespace stayed in `Terminating`.
+
+### 3. Checked namespace finalizers
+```powershell
+kubectl get namespace actions-runner-system -o json
+```
+- Found `finalizers` blocking termination.
+- Tried patching using `kubectl patch`, `kubectl replace`, and JSON modifications, but PowerShell encoding issues (BOM/UTF8) caused errors.
+
+### 4. Exported the namespace JSON and cleaned encoding
+```powershell
+kubectl get namespace actions-runner-system -o json > ns.json
+```
+- Opened `ns.json` and made sure:
+```json
+"spec": {
+  "finalizers": []
+}
+```
+- Saved the file as UTF-8 **without BOM**.
+
+### 5. Force finalize the namespace
+```powershell
+kubectl replace --raw "/api/v1/namespaces/actions-runner-system/finalize" -f ns.json
+```
+- This forced Kubernetes to remove the stale finalizer reference.
+
+### 6. Verify the namespace deletion
+```powershell
+kubectl get ns
+```
+Output:
+```
+NAME              STATUS   AGE
+cert-manager      Active   5h16m
+default           Active   5h40m
+kube-node-lease   Active   5h40m
+kube-public       Active   5h40m
+kube-system       Active   5h40m
+```
+> The `actions-runner-system` namespace is gone.
+
+---
+
+## Key Takeaways
+
+- Kubernetes can leave namespaces stuck in `Terminating` if a resource with a finalizer has already been deleted.
+- Standard delete/patch operations may fail if webhooks or controllers are no longer available.
+- Force finalization using the `/finalize` endpoint is a reliable way to clean up stuck namespaces.
+- PowerShell may add BOMs when writing files; Kubernetes requires UTF-8 without BOM for JSON.
+
+---
+
+## Summary of Commands Used
+
+```powershell
+# 1. Check namespace status
+kubectl get ns
+
+# 2. Delete all runners
+kubectl delete runners --all -n actions-runner-system
+
+# 3. Export namespace JSON
+kubectl get namespace actions-runner-system -o json > ns.json
+
+# 4. Edit ns.json and remove finalizers
+# "spec": { "finalizers": [] }
+
+# 5. Force finalize the namespace
+kubectl replace --raw "/api/v1/namespaces/actions-runner-system/finalize" -f ns.json
+
+# 6. Verify namespace deletion
+kubectl get ns
+```
+
+This guide fully documents my process and solution.
