@@ -404,6 +404,7 @@ provider "kubernetes" {
   }
 }
 
+
 provider "helm" {
   kubernetes = {
     host                   = aws_eks_cluster.this.endpoint
@@ -436,53 +437,65 @@ provider "kubectl" {
 
 
 
-resource "kubernetes_namespace" "arc" {
-  metadata {
-    name = "actions-runner-system"
-  }
-    depends_on = [
-    aws_eks_node_group.private_ng,
-    aws_eks_addon.coredns,
-    aws_eks_addon.kube_proxy,
-    aws_eks_addon.vpc_cni,
-    aws_eks_addon.pod_identity_agent,
-    aws_eks_addon.cert_manager
-  ]
-}
+# resource "kubernetes_namespace" "arc" {
+#   metadata {
+#     name = "actions-runner-system"
+#   }
+#     depends_on = [
+#     aws_eks_node_group.private_ng,
+#     aws_eks_addon.coredns,
+#     aws_eks_addon.kube_proxy,
+#     aws_eks_addon.vpc_cni,
+#     aws_eks_addon.pod_identity_agent,
+#     aws_eks_addon.cert_manager
+#   ]
+# }
+
+# # -----------------------------
+# # ARC Helm release
+# # -----------------------------
+# resource "helm_release" "arc" {
+#   name             = "controller"
+#   repository       = "https://actions-runner-controller.github.io/actions-runner-controller"
+#   chart            = "actions-runner-controller"
+#   namespace        = kubernetes_namespace.arc.metadata[0].name
+#   create_namespace = false
+
+#   wait    = true
+#   timeout = 600
+
+#   depends_on = [kubernetes_secret.arc_github_token]
+# }
 
 # -----------------------------
-# ARC Helm release
+# Operator Lifecycle Manager (OLM)
 # -----------------------------
-resource "helm_release" "arc" {
-  name             = "controller"
-  repository       = "https://actions-runner-controller.github.io/actions-runner-controller"
-  chart            = "actions-runner-controller"
-  namespace        = kubernetes_namespace.arc.metadata[0].name
-  create_namespace = false
 
-  wait    = true
-  timeout = 600
-
-  depends_on = [kubernetes_secret.arc_github_token]
-}
+# Download OLM CRDs to Terraform
+# -----------------------------
+# OLM CRDs
+# -----------------------------
+# -----------------------------
+# Helper function to remove large annotations (optional)
+# -----------------------------
 
 # -----------------------------
 # GitHub Token Secret for ARC
 # -----------------------------
-resource "kubernetes_secret" "arc_github_token" {
-  metadata {
-    name      = "controller-manager"
-    namespace = kubernetes_namespace.arc.metadata[0].name
-  }
+# resource "kubernetes_secret" "arc_github_token" {
+#   metadata {
+#     name      = "controller-manager"
+#     namespace = kubernetes_namespace.arc.metadata[0].name
+#   }
 
-  data = {
-    github_token = var.github_token
-  }
+#   data = {
+#     github_token = var.github_token
+#   }
 
-  type = "Opaque"
+#   type = "Opaque"
 
-  depends_on = [kubernetes_namespace.arc]
-}
+#   depends_on = [kubernetes_namespace.arc]
+# }
 
 
 
@@ -513,27 +526,32 @@ resource "aws_iam_role_policy_attachment" "node_ecr_access" {
   policy_arn = aws_iam_policy.ecr_access.arn
 }
 
+# resource "kubernetes_secret" "ecr_registry" {
+#   metadata {
+#     name      = "ecr-registry"
+#     namespace = "default"
+#   }
 
-resource "kubernetes_secret" "ecr_registry" {
-  metadata {
-    name      = "ecr-registry"
-    namespace = "default"
-  }
+#   type = "kubernetes.io/dockerconfigjson"
 
-  type = "kubernetes.io/dockerconfigjson"
+#   data = {
+#     ".dockerconfigjson" = base64encode(jsonencode({
+#       auths = {
+#         "${aws_ecr_repository.private.repository_url}" = {
+#           username = data.aws_ecr_authorization_token.dockertoken.user_name
+#           password = data.aws_ecr_authorization_token.dockertoken.password
+#           email    = "none"
+#         }
+#       }
+#     }))
+#   }
 
-  data = {
-    ".dockerconfigjson" = base64encode(jsonencode({
-      auths = {
-        "${aws_ecr_repository.private.repository_url}" = {
-          username = data.aws_ecr_authorization_token.dockertoken.user_name
-          password = data.aws_ecr_authorization_token.dockertoken.password
-          email    = "none"
-        }
-      }
-    }))
-  }
-}
+#   depends_on = [
+#     aws_ecr_repository.private,
+#     data.aws_ecr_authorization_token.dockertoken
+#   ]
+# }
+
 
 # ECR repository
 resource "aws_ecr_repository" "private" {
@@ -550,49 +568,192 @@ resource "aws_ecr_repository" "private" {
   }
 }
 
-
 # Get temporary ECR auth token
 data "aws_ecr_authorization_token" "dockertoken" {}
 
 # First: login to ECR
-resource "null_resource" "docker_login" {
-  provisioner "local-exec" {
-    command = <<EOT
-aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin ${aws_ecr_repository.private.repository_url}
-EOT
-  }
+# resource "null_resource" "docker_login" {
+#   provisioner "local-exec" {
+#     command = <<EOT
+# aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin ${aws_ecr_repository.private.repository_url}
+# EOT
+#   }
 
-  depends_on = [
-    aws_ecr_repository.private
-  ]
-}
+#   depends_on = [
+#     aws_ecr_repository.private
+#   ]
+# }
 
 
 
-# Second: build the Docker image
-resource "null_resource" "docker_build" {
-  provisioner "local-exec" {
-    command = "docker build --no-cache -t ${aws_ecr_repository.private.repository_url}:latest --build-arg RUNNER_VERSION=2.319.1 --build-arg RUNNER_CONTAINER_HOOKS_VERSION=0.4.0 ../../../charts/helm/runners"
-  }
+# # Second: build the Docker image
+# resource "null_resource" "docker_build" {
+#   provisioner "local-exec" {
+#     command = "docker build --no-cache -t ${aws_ecr_repository.private.repository_url}:latest --build-arg RUNNER_VERSION=2.319.1 --build-arg RUNNER_CONTAINER_HOOKS_VERSION=0.4.0 ../../../charts/helm/runners"
+#   }
 
-  depends_on = [
-    null_resource.docker_login
-  ]
-}
+#   depends_on = [
+#     null_resource.docker_login
+#   ]
+# }
 
-# Third: push the image
-resource "null_resource" "docker_push" {
-  provisioner "local-exec" {
-    command = "docker push ${aws_ecr_repository.private.repository_url}:latest"
-  }
+# # Third: push the image
+# resource "null_resource" "docker_push" {
+#   provisioner "local-exec" {
+#     command = "docker push ${aws_ecr_repository.private.repository_url}:latest"
+#   }
 
-  depends_on = [
-    null_resource.docker_build
-  ]
-}
+#   depends_on = [
+#     null_resource.docker_build
+#   ]
+# }
+
+
 # -----------------------
-# Helpful outputs
+# ADDED: EC2 instance (t2.xlarge) in a public subnet with SG allowing connectivity from VPC / EKS pods
 # -----------------------
+
+# Security Group for EC2
+resource "aws_security_group" "ec2_sg" {
+  name        = "ciphertrust-sg"
+  description = "Allow access per vendor AMI recommendations"
+  vpc_id      = aws_vpc.project.id
+
+  # SSH
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # HTTP
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # HTTPS
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # PostgreSQL
+  ingress {
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Example: custom TCP ports recommended by vendor
+  ingress {
+    from_port   = 8443
+    to_port     = 8443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "ciphertrust-sg"
+  }
+}
+
+# IAM Role for EC2
+resource "aws_iam_role" "ec2_role" {
+  name = "ciphertrust-ec2-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_role_attach" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
+}
+
+resource "aws_iam_instance_profile" "ec2_instance_profile" {
+  name = "ciphertrust-ec2-instance-profile"
+  role = aws_iam_role.ec2_role.name
+}
+
+# EC2 Key Pair
+resource "tls_private_key" "ciphertrust_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "aws_key_pair" "ciphertrust_key" {
+  key_name   = "ciphertrust-key"
+  public_key = tls_private_key.ciphertrust_key.public_key_openssh
+}
+
+# EC2 Instance
+resource "aws_instance" "ciphertrust" {
+  ami                         = "ami-017254438de429dbb"
+  instance_type               = "t3.2xlarge"
+  subnet_id                   = aws_subnet.public1_a.id
+  associate_public_ip_address = true
+  vpc_security_group_ids      = [aws_security_group.ec2_sg.id]
+  iam_instance_profile        = aws_iam_instance_profile.ec2_instance_profile.name
+  key_name                    = aws_key_pair.ciphertrust_key.key_name
+
+  # EBS root volume
+  root_block_device {
+    volume_type           = "gp3"
+    volume_size           = 300
+    iops                  = 3000
+    delete_on_termination = true
+    encrypted             = false
+  }
+
+  tags = {
+    Name = "ciphertrust-ec2"
+  }
+
+  # Recommended options
+  disable_api_termination      = false
+  credit_specification {
+    cpu_credits = "unlimited"
+  }
+
+  metadata_options {
+    http_tokens            = "required"
+    http_endpoint          = "enabled"
+    http_put_response_hop_limit = 2
+  }
+
+  depends_on = [aws_route_table_association.public1_a]
+}
+
+output "ec2_instance_id" {
+  value = aws_instance.ciphertrust.id
+}
+
+output "ec2_public_ip" {
+  value = aws_instance.ciphertrust.public_ip
+}
+
+output "ec2_security_group_id" {
+  value = aws_security_group.ec2_sg.id
+}
 
 output "vpc_id" {
   value = aws_vpc.project.id
@@ -612,4 +773,17 @@ output "eks_cluster_name" {
 
 output "node_group_name" {
   value = aws_eks_node_group.private_ng.node_group_name
+}
+
+output "ciphertrust_keypair_name" {
+  value = aws_key_pair.ciphertrust_key.key_name
+}
+
+output "ciphertrust_private_key_pem" {
+  value     = tls_private_key.ciphertrust_key.private_key_pem
+  sensitive = true
+}
+
+output "ciphertrust_ssh_command" {
+  value = "ssh -i private_key.pem ec2-user@${aws_instance.ciphertrust.public_ip}"
 }
