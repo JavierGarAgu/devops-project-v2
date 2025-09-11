@@ -437,35 +437,65 @@ provider "kubectl" {
 
 
 
-# resource "kubernetes_namespace" "arc" {
-#   metadata {
-#     name = "actions-runner-system"
-#   }
-#     depends_on = [
-#     aws_eks_node_group.private_ng,
-#     aws_eks_addon.coredns,
-#     aws_eks_addon.kube_proxy,
-#     aws_eks_addon.vpc_cni,
-#     aws_eks_addon.pod_identity_agent,
-#     aws_eks_addon.cert_manager
-#   ]
-# }
+resource "kubernetes_namespace" "arc" {
+  metadata {
+    name = "actions-runner-system"
+  }
+    depends_on = [
+    aws_eks_node_group.private_ng,
+    aws_eks_addon.coredns,
+    aws_eks_addon.kube_proxy,
+    aws_eks_addon.vpc_cni,
+    aws_eks_addon.pod_identity_agent,
+    aws_eks_addon.cert_manager
+  ]
+}
 
-# # -----------------------------
-# # ARC Helm release
-# # -----------------------------
-# resource "helm_release" "arc" {
-#   name             = "controller"
-#   repository       = "https://actions-runner-controller.github.io/actions-runner-controller"
-#   chart            = "actions-runner-controller"
-#   namespace        = kubernetes_namespace.arc.metadata[0].name
-#   create_namespace = false
+# -----------------------------
+# ARC Helm release
+# -----------------------------
+resource "helm_release" "arc" {
+  name             = "controller"
+  repository       = "https://actions-runner-controller.github.io/actions-runner-controller"
+  chart            = "actions-runner-controller"
+  namespace        = kubernetes_namespace.arc.metadata[0].name
+  create_namespace = false
 
-#   wait    = true
-#   timeout = 600
+  wait    = true
+  timeout = 600
 
-#   depends_on = [kubernetes_secret.arc_github_token]
-# }
+  depends_on = [kubernetes_secret.arc_github_token]
+}
+
+resource "kubectl_manifest" "aws_auth" {
+  yaml_body = <<YAML
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aws-auth
+  namespace: kube-system
+data:
+  mapRoles: |
+    - rolearn: ${aws_iam_role.eks_nodes.arn}
+      username: system:node:{{EC2PrivateDNSName}}
+      groups:
+        - system:bootstrappers
+        - system:nodes
+    - rolearn: ${aws_iam_role.ec2_role.arn}
+      username: ec2-admin
+      groups:
+        - system:masters
+YAML
+
+  depends_on = [
+    aws_eks_node_group.private_ng,
+    aws_eks_addon.coredns,
+    aws_eks_addon.kube_proxy,
+    aws_eks_addon.vpc_cni,
+    aws_eks_addon.pod_identity_agent
+  ]
+}
+
 
 # -----------------------------
 # Operator Lifecycle Manager (OLM)
@@ -482,20 +512,20 @@ provider "kubectl" {
 # -----------------------------
 # GitHub Token Secret for ARC
 # -----------------------------
-# resource "kubernetes_secret" "arc_github_token" {
-#   metadata {
-#     name      = "controller-manager"
-#     namespace = kubernetes_namespace.arc.metadata[0].name
-#   }
+resource "kubernetes_secret" "arc_github_token" {
+  metadata {
+    name      = "controller-manager"
+    namespace = kubernetes_namespace.arc.metadata[0].name
+  }
 
-#   data = {
-#     github_token = var.github_token
-#   }
+  data = {
+    github_token = var.github_token
+  }
 
-#   type = "Opaque"
+  type = "Opaque"
 
-#   depends_on = [kubernetes_namespace.arc]
-# }
+  depends_on = [kubernetes_namespace.arc]
+}
 
 
 
@@ -526,31 +556,31 @@ resource "aws_iam_role_policy_attachment" "node_ecr_access" {
   policy_arn = aws_iam_policy.ecr_access.arn
 }
 
-# resource "kubernetes_secret" "ecr_registry" {
-#   metadata {
-#     name      = "ecr-registry"
-#     namespace = "default"
-#   }
+resource "kubernetes_secret" "ecr_registry" {
+  metadata {
+    name      = "ecr-registry"
+    namespace = "default"
+  }
 
-#   type = "kubernetes.io/dockerconfigjson"
+  type = "kubernetes.io/dockerconfigjson"
 
-#   data = {
-#     ".dockerconfigjson" = base64encode(jsonencode({
-#       auths = {
-#         "${aws_ecr_repository.private.repository_url}" = {
-#           username = data.aws_ecr_authorization_token.dockertoken.user_name
-#           password = data.aws_ecr_authorization_token.dockertoken.password
-#           email    = "none"
-#         }
-#       }
-#     }))
-#   }
+  data = {
+    ".dockerconfigjson" = base64encode(jsonencode({
+      auths = {
+        "${aws_ecr_repository.private.repository_url}" = {
+          username = data.aws_ecr_authorization_token.dockertoken.user_name
+          password = data.aws_ecr_authorization_token.dockertoken.password
+          email    = "none"
+        }
+      }
+    }))
+  }
 
-#   depends_on = [
-#     aws_ecr_repository.private,
-#     data.aws_ecr_authorization_token.dockertoken
-#   ]
-# }
+  depends_on = [
+    aws_ecr_repository.private,
+    data.aws_ecr_authorization_token.dockertoken
+  ]
+}
 
 
 # ECR repository
@@ -561,7 +591,7 @@ resource "aws_ecr_repository" "private" {
     scan_on_push = true
   }
 
-  force_delete = true # <- this allows deleting all images automatically
+  force_delete = true
 
   tags = {
     Name = "my-private-repo"
@@ -572,50 +602,41 @@ resource "aws_ecr_repository" "private" {
 data "aws_ecr_authorization_token" "dockertoken" {}
 
 # First: login to ECR
-# resource "null_resource" "docker_login" {
-#   provisioner "local-exec" {
-#     command = <<EOT
-# aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin ${aws_ecr_repository.private.repository_url}
-# EOT
-#   }
+resource "null_resource" "docker_login" {
+  provisioner "local-exec" {
+    command = <<EOT
+aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin ${aws_ecr_repository.private.repository_url}
+EOT
+  }
 
-#   depends_on = [
-#     aws_ecr_repository.private
-#   ]
-# }
-
-
-
-# # Second: build the Docker image
-# resource "null_resource" "docker_build" {
-#   provisioner "local-exec" {
-#     command = "docker build --no-cache -t ${aws_ecr_repository.private.repository_url}:latest --build-arg RUNNER_VERSION=2.319.1 --build-arg RUNNER_CONTAINER_HOOKS_VERSION=0.4.0 ../../../charts/helm/runners"
-#   }
-
-#   depends_on = [
-#     null_resource.docker_login
-#   ]
-# }
-
-# # Third: push the image
-# resource "null_resource" "docker_push" {
-#   provisioner "local-exec" {
-#     command = "docker push ${aws_ecr_repository.private.repository_url}:latest"
-#   }
-
-#   depends_on = [
-#     null_resource.docker_build
-#   ]
-# }
+  depends_on = [
+    aws_ecr_repository.private
+  ]
+}
 
 
-# -----------------------
-# ADDED: EC2 instance (t2.xlarge) in a public subnet with SG allowing connectivity from VPC / EKS pods
-# -----------------------
 
-# -----------------------
-# ADDED: EC2 instance (t3.micro) in a public subnet with SG allowing connectivity from VPC / EKS pods
-# -----------------------
+# Second: build the Docker image
+resource "null_resource" "docker_build" {
+  provisioner "local-exec" {
+    command = "docker build --no-cache -t ${aws_ecr_repository.private.repository_url}:latest --build-arg RUNNER_VERSION=2.319.1 --build-arg RUNNER_CONTAINER_HOOKS_VERSION=0.4.0 ../../../charts/helm/runners"
+  }
+
+  depends_on = [
+    null_resource.docker_login
+  ]
+}
+
+# Third: push the image
+resource "null_resource" "docker_push" {
+  provisioner "local-exec" {
+    command = "docker push ${aws_ecr_repository.private.repository_url}:latest"
+  }
+
+  depends_on = [
+    null_resource.docker_build
+  ]
+}
 
 # Security Group for EC2
 resource "aws_security_group" "ec2_sg" {
@@ -675,6 +696,22 @@ resource "aws_iam_role" "ec2_role" {
 resource "aws_iam_role_policy_attachment" "ec2_role_attach" {
   role       = aws_iam_role.ec2_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
+}
+
+# Attach EKS access policies to EC2 role
+resource "aws_iam_role_policy_attachment" "ec2_eks_cluster_policy" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_eks_worker_policy" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "ec2_ecr_ro_policy" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
 resource "aws_iam_instance_profile" "ec2_instance_profile" {
