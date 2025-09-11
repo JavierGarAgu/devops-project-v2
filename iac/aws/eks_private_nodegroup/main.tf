@@ -613,10 +613,14 @@ data "aws_ecr_authorization_token" "dockertoken" {}
 # ADDED: EC2 instance (t2.xlarge) in a public subnet with SG allowing connectivity from VPC / EKS pods
 # -----------------------
 
+# -----------------------
+# ADDED: EC2 instance (t3.micro) in a public subnet with SG allowing connectivity from VPC / EKS pods
+# -----------------------
+
 # Security Group for EC2
 resource "aws_security_group" "ec2_sg" {
-  name        = "ciphertrust-sg"
-  description = "Allow access per vendor AMI recommendations"
+  name        = "ec2-sg"
+  description = "Allow access per basic EC2 setup"
   vpc_id      = aws_vpc.project.id
 
   # SSH
@@ -643,22 +647,6 @@ resource "aws_security_group" "ec2_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # PostgreSQL
-  ingress {
-    from_port   = 5432
-    to_port     = 5432
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # Example: custom TCP ports recommended by vendor
-  ingress {
-    from_port   = 8443
-    to_port     = 8443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
   egress {
     from_port   = 0
     to_port     = 0
@@ -667,13 +655,13 @@ resource "aws_security_group" "ec2_sg" {
   }
 
   tags = {
-    Name = "ciphertrust-sg"
+    Name = "ec2-sg"
   }
 }
 
 # IAM Role for EC2
 resource "aws_iam_role" "ec2_role" {
-  name = "ciphertrust-ec2-role"
+  name = "basic-ec2-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -690,69 +678,67 @@ resource "aws_iam_role_policy_attachment" "ec2_role_attach" {
 }
 
 resource "aws_iam_instance_profile" "ec2_instance_profile" {
-  name = "ciphertrust-ec2-instance-profile"
+  name = "basic-ec2-instance-profile"
   role = aws_iam_role.ec2_role.name
 }
 
 # EC2 Key Pair
-resource "tls_private_key" "ciphertrust_key" {
+resource "tls_private_key" "ec2_key" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
 
-resource "aws_key_pair" "ciphertrust_key" {
-  key_name   = "ciphertrust-key"
-  public_key = tls_private_key.ciphertrust_key.public_key_openssh
+resource "aws_key_pair" "ec2_key" {
+  key_name   = "ec2-key"
+  public_key = tls_private_key.ec2_key.public_key_openssh
 }
 
+# Get latest Amazon Linux 2 AMI
+data "aws_ami" "amazon_linux2" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
+}
 # EC2 Instance
-resource "aws_instance" "ciphertrust" {
-  ami                         = "ami-017254438de429dbb"
-  instance_type               = "t3.2xlarge"
+resource "aws_instance" "ec2" {
+  ami                         = data.aws_ami.amazon_linux2.id
+  instance_type               = "t3.micro"
   subnet_id                   = aws_subnet.public1_a.id
   associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.ec2_sg.id]
   iam_instance_profile        = aws_iam_instance_profile.ec2_instance_profile.name
-  key_name                    = aws_key_pair.ciphertrust_key.key_name
-
-  # EBS root volume
-  root_block_device {
-    volume_type           = "gp3"
-    volume_size           = 300
-    iops                  = 3000
-    delete_on_termination = true
-    encrypted             = false
-  }
+  key_name                    = aws_key_pair.ec2_key.key_name
 
   tags = {
-    Name = "ciphertrust-ec2"
-  }
-
-  # Recommended options
-  disable_api_termination      = false
-  credit_specification {
-    cpu_credits = "unlimited"
-  }
-
-  metadata_options {
-    http_tokens            = "required"
-    http_endpoint          = "enabled"
-    http_put_response_hop_limit = 2
+    Name = "basic-ec2"
   }
 
   depends_on = [aws_route_table_association.public1_a]
 }
 
 output "ec2_instance_id" {
-  value = aws_instance.ciphertrust.id
+  value = aws_instance.ec2.id
 }
 
 output "ec2_public_ip" {
-  value = aws_instance.ciphertrust.public_ip
+  value = aws_instance.ec2.public_ip
 }
 
 output "ec2_security_group_id" {
   value = aws_security_group.ec2_sg.id
+}
+
+output "ec2_keypair_name" {
+  value = aws_key_pair.ec2_key.key_name
+}
+
+output "ec2_private_key_pem" {
+  value     = tls_private_key.ec2_key.private_key_pem
+  sensitive = true
 }
 
 output "vpc_id" {
@@ -773,17 +759,4 @@ output "eks_cluster_name" {
 
 output "node_group_name" {
   value = aws_eks_node_group.private_ng.node_group_name
-}
-
-output "ciphertrust_keypair_name" {
-  value = aws_key_pair.ciphertrust_key.key_name
-}
-
-output "ciphertrust_private_key_pem" {
-  value     = tls_private_key.ciphertrust_key.private_key_pem
-  sensitive = true
-}
-
-output "ciphertrust_ssh_command" {
-  value = "ssh -i private_key.pem ec2-user@${aws_instance.ciphertrust.public_ip}"
 }
