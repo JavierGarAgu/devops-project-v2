@@ -144,6 +144,15 @@ $pod = kubectl get pods -n actions-runner-system --no-headers |
 kubectl logs $pod -n actions-runner-system -c runner
 kubectl describe pod $pod -n actions-runner-system
 
+interesting command like watch in linux
+
+while ($true) {
+    Clear-Host
+    kubectl describe pod example-runnerdeploy-2q7t8-rlg8f -n actions-runner-system
+    Start-Sleep -Seconds 2
+}
+
+
 https://dev.to/ashokan/kubernetes-hosted-runners-for-github-actions-with-arc-g8a
 https://medium.com/simform-engineering/how-to-setup-self-hosted-github-action-runner-on-kubernetes-c8825ccbb63c
 https://actions-runner-controller.github.io/actions-runner-controller/

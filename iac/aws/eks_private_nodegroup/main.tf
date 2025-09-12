@@ -565,15 +565,13 @@ resource "kubernetes_secret" "ecr_registry" {
   type = "kubernetes.io/dockerconfigjson"
 
   data = {
-    ".dockerconfigjson" = base64encode(jsonencode({
+    ".dockerconfigjson" = jsonencode({
       auths = {
         "${aws_ecr_repository.private.repository_url}" = {
-          username = data.aws_ecr_authorization_token.dockertoken.user_name
-          password = data.aws_ecr_authorization_token.dockertoken.password
-          email    = "none"
+          auth = data.aws_ecr_authorization_token.dockertoken.authorization_token
         }
       }
-    }))
+    })
   }
 
   depends_on = [

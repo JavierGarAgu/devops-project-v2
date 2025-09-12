@@ -8,5 +8,7 @@ spec:
   template:
     spec:
       repository: JavierGarAgu/devops-project-v2
-      image: pruebas:latest
-      imagePullPolicy: Never
+      image: 923714621789.dkr.ecr.eu-north-1.amazonaws.com/my-private-repo:latest
+      #pruebas:latest
+      #never
+      imagePullPolicy: Always
