@@ -436,6 +436,7 @@ provider "kubectl" {
 }
 
 
+#pending change to kubernetes manifest for manage the timeout
 
 resource "kubernetes_namespace" "arc" {
   metadata {
