@@ -496,6 +496,22 @@ YAML
   ]
 }
 
+resource "helm_release" "my_runner" {
+  name             = "my-runner"
+  chart            = "../../../charts/helm/arc_runner"
+  namespace        = kubernetes_namespace.arc.metadata[0].name
+  create_namespace = false
+  set = [
+    {
+      name  = "runner.image"
+      value = "${aws_ecr_repository.private.repository_url}:latest"
+    }
+  ]
+
+  depends_on = [helm_release.arc]
+}
+
+
 
 # -----------------------------
 # Operator Lifecycle Manager (OLM)
@@ -617,7 +633,7 @@ EOT
 # Second: build the Docker image
 resource "null_resource" "docker_build" {
   provisioner "local-exec" {
-    command = "docker build --no-cache -t ${aws_ecr_repository.private.repository_url}:latest --build-arg RUNNER_VERSION=2.319.1 --build-arg RUNNER_CONTAINER_HOOKS_VERSION=0.4.0 ../../../charts/helm/runners"
+    command = "docker build --no-cache -t ${aws_ecr_repository.private.repository_url}:latest --build-arg RUNNER_VERSION=2.319.1 --build-arg RUNNER_CONTAINER_HOOKS_VERSION=0.4.0 ../../../charts/docker_images/runner"
   }
 
   depends_on = [
