@@ -1,0 +1,13 @@
+runner:
+  name: jga-runnerdeploy
+  namespace: actions-runner-system
+  replicas: 1
+
+  # GitHub repo where runner will connect
+  repository: "JavierGarAgu/devops-project-v2"
+
+  # Runner image (ECR repo + latest tag
+  image: "xxxxxxx.dkr.ecr.region.amazonaws.com/my-private-repo:latest"
+
+  # Always pull to ensure the image is pulled right
+  pullpolicy: Always
