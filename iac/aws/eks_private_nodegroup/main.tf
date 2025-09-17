@@ -19,6 +19,10 @@ terraform {
   }
 }
 
+locals {
+  arc_namespace = "actions-runner-system"
+}
+
 provider "aws" {
   region = "eu-north-1"
 }
@@ -459,7 +463,7 @@ resource "helm_release" "arc" {
   name             = "controller"
   repository       = "https://actions-runner-controller.github.io/actions-runner-controller"
   chart            = "actions-runner-controller"
-  namespace        = kubernetes_namespace.arc.metadata[0].name
+  namespace        = "actions-runner-system"
   create_namespace = false
 
   wait    = true
@@ -497,20 +501,103 @@ YAML
   ]
 }
 
+resource "null_resource" "wait_for_oidc" {
+  provisioner "local-exec" {
+    interpreter = ["PowerShell", "-Command"]
+
+    command = <<EOT
+for ($i = 0; $i -lt 10; $i++) {
+  try {
+    Invoke-WebRequest -Uri '${aws_eks_cluster.this.identity[0].oidc[0].issuer}/.well-known/openid-configuration' -UseBasicParsing -TimeoutSec 10 | Out-Null
+    exit 0
+  } catch {
+    Write-Host 'Waiting for OIDC issuer...'
+    Start-Sleep -Seconds 15
+  }
+}
+exit 1
+EOT
+  }
+
+  depends_on = [aws_eks_cluster.this]
+}
+
+
+data "tls_certificate" "eks_oidc" {
+  url = aws_eks_cluster.this.identity[0].oidc[0].issuer
+  depends_on = [null_resource.wait_for_oidc]
+}
+
+resource "aws_iam_openid_connect_provider" "eks" {
+  url            = aws_eks_cluster.this.identity[0].oidc[0].issuer
+  client_id_list = ["sts.amazonaws.com"]
+  thumbprint_list = [
+    data.tls_certificate.eks_oidc.certificates[0].sha1_fingerprint
+  ]
+}
+
+resource "aws_iam_role" "arc_runner" {
+  name = "arc-runner-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Federated = aws_iam_openid_connect_provider.eks.arn
+        }
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Condition = {
+          StringEquals = {
+            # subject must match serviceaccount in the namespace
+        "${replace(aws_eks_cluster.this.identity[0].oidc[0].issuer, "https://", "")}:sub" = "system:serviceaccount:${local.arc_namespace}:my-runner-sa"
+          }
+        }
+      }
+    ]
+  })
+}
+
+# Example: give access to S3
+resource "aws_iam_role_policy_attachment" "arc_runner_s3" {
+  role       = aws_iam_role.arc_runner.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+}
+
+
 resource "helm_release" "my_runner" {
   name             = "my-runner"
   chart            = "../../../charts/helm/arc_runner"
-  namespace        = kubernetes_namespace.arc.metadata[0].name
+  namespace        = "actions-runner-system"
   create_namespace = false
+
   set = [
     {
       name  = "runner.image"
       value = "${aws_ecr_repository.private.repository_url}:latest"
+    },
+    {
+      name  = "runner.pullpolicy"
+      value = "Always"
+    },
+    {
+      name  = "runner.serviceAccountName"
+      value = "my-runner-sa"
+    },
+    {
+      name  = "runner.roleArn"
+      value = aws_iam_role.arc_runner.arn
     }
   ]
 
-  depends_on = [helm_release.arc]
+  depends_on = [
+    helm_release.arc,
+    kubernetes_namespace.arc,
+    aws_iam_role.arc_runner
+  ]
 }
+
 
 
 
@@ -532,7 +619,7 @@ resource "helm_release" "my_runner" {
 resource "kubernetes_secret" "arc_github_token" {
   metadata {
     name      = "controller-manager"
-    namespace = kubernetes_namespace.arc.metadata[0].name
+    namespace = "actions-runner-system"
   }
 
   data = {

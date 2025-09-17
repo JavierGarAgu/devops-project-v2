@@ -11,3 +11,7 @@ runner:
 
   # Always pull to ensure the image is pulled right
   pullpolicy: Always
+
+  #SERVICEACCOUNT
+  serviceAccountName: my-runner-sa
+  roleArn: arn:aws:iam::123456789012:role/arc-runner-role

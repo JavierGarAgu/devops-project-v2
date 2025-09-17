@@ -10,3 +10,4 @@ spec:
       repository: {{ .Values.runner.repository }}
       image: {{ .Values.runner.image }}
       imagePullPolicy: {{ .Values.runner.pullpolicy }}
+      serviceAccountName: {{ .Values.runner.serviceAccountName }}
