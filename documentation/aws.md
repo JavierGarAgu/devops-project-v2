@@ -718,4 +718,278 @@ terraform import aws_s3_bucket.tf_state tfstate-devopsv2-abcd
 # Import the DynamoDB table into Terraform
 terraform import aws_dynamodb_table.tf_locks terraform-locks-abcd
 
+# my eks and arc setup on aws with terraform - complete walkthrough
 
+alright so this is my COMPLETE terraform setup for creating a private eks cluster with github actions runner controller. ive been working on this for weeks, dealing with all sorts of weird aws errors and timeout issues. let me walk you through everything were building here, piece by piece, with all the gritty details.
+
+## what were actually building here
+
+the main idea was to create a COMPLETELY private eks cluster that can run github actions runners in a secure way. i didnt want anything exposed to the internet, but still needed some way to actually manage the cluster. so weve got this jumpbox ec2 instance that acts as our gateway to everything.
+
+the whole thing is in a vpc with proper networking - public and private subnets across three availability zones because high availability is IMPORTANT even for test environments. you never know when one availability zone might decide to take a nap, right?
+
+## starting with the providers block
+
+first things first - we gotta declare all the terraform providers were gonna use:
+
+the aws provider is obvious - were building on aws infrastructure. the tls provider is for generating ssh keys so we can actually access our jumpbox. kubectl lets us apply kubernetes manifests directly from terraform which is pretty slick. docker is for building and pushing our custom runner image to ecr.
+
+i pinned the versions so that future updates dont break my setup. ive been burned by that before where terraform updates and suddenly nothing works anymore. not gonna happen this time.
+
+## the networking stuff - vpc and subnets
+
+ok so the networking part is CRUCIAL for this whole thing to work properly. were creating a vpc with 10.0.0.0/16 cidr block:
+
+see those enable_dns options? theyre important for eks to work right. without dns support, your pods wont be able to resolve internal addresses and everything just falls apart. learned that the hard way when my pods couldnt talk to each other.
+
+then we create the subnets - three public and three private across different azs. the public subnets have map_public_ip_on_launch set to false which is a security thing. we dont want instances getting public ips automatically. the private subnets dont even have this option because theyre, well, private.
+
+each subnet gets a descriptive name so we can actually tell what's what in the aws console. ive made the mistake of not naming things properly and then spending hours trying to figure out which subnet is which.
+
+## internet and nat gateways
+
+for internet access, we need an internet gateway for the public subnets. this is what allows resources in public subnets to talk to the internet.
+
+and a nat gateway for the private subnets to access the internet. the nat gateway needs an elastic ip and lives in a public subnet. the depends_on makes sure the igw exists before we try to create the nat gateway - terraform doesnt always get the order right on its own.
+
+the nat gateway is one of the more expensive parts of this setup, but we need it because the nodes in private subnets need to pull container images and stuff from the internet.
+
+## route tables - how traffic actually flows
+
+route tables control where traffic goes in our vpc. we have one public route table that routes to the internet gateway:
+
+and separate route tables for each private subnet that route to the nat gateway. this is a bit more work than having one route table for all private subnets, but it gives us more control and is better practice.
+
+this setup means instances in private subnets can reach the internet for updates and pulling images but cant be reached from the internet directly. its like they can make outbound calls but cant receive incoming calls.
+
+## iam roles - who can do what
+
+iam is SUPER important for security in aws. we create roles for the eks cluster and nodes:
+
+the cluster role lets the eks control plane manage aws resources on our behalf. we attach the amazoneksclusterpolicy to it which gives it the permissions it needs.
+
+for the nodes, we create another role that gets three policies attached: amazoneksworkernodepolicy, amazoneks_cni_policy, and amazonecrcontainerregistryreadonly. these let the nodes join the cluster, handle networking, and pull images from ecr.
+
+iam roles are way better than using access keys because theyre temporary and managed by aws. no more worrying about rotated credentials or leaked keys.
+
+## the actual eks cluster
+
+now for the main event - the eks cluster itself:
+
+see how its in the private subnets? thats what makes it private. both endpoint types are enabled, but since its in private subnets, the public endpoint isnt really accessible from the internet unless youre in the vpc.
+
+we disable logging to save costs, but in production you might want to enable this for audit purposes. the depends_on makes sure the cluster role has the right policies before trying to create the cluster.
+
+## node group - the workers
+
+the node group defines the actual worker nodes that will run our pods:
+
+we use t3.medium instances because theyre a good balance of cost and performance. al2023 is the latest amazon linux version. 20gb disks give us enough space for most workloads.
+
+the scaling config starts with 1 node but can go up to 2 if needed. the update config allows one node to be unavailable during updates so we dont take down the whole cluster.
+
+the depends_on is important here - it makes sure the node role has all the necessary policies before trying to create the nodes.
+
+## eks addons - cluster functionality
+
+we install several addons for cluster functionality:
+
+coredns for dns resolution within the cluster. without this, your pods cant find each other by name. kube-proxy handles network routing between pods. vpc-cni integrates with aws networking. pod-identity-agent enables irsa which is way better than using access keys. cert-manager handles ssl certificates.
+
+these addons are ESSENTIAL for a working cluster. ive tried running without some of them and its not pretty.
+
+## setting up kubernetes providers
+
+to manage kubernetes resources from terraform, we need to configure the providers:
+
+this sets up authentication with our eks cluster using aws eks get-token. its much cleaner than trying to manage kubeconfig files manually.
+
+the exec configuration tells terraform how to get authentication tokens using the aws cli. this is the recommended way to authenticate with eks.
+
+## actions runner controller namespace
+
+we create a dedicated namespace for arc:
+
+namespaces help keep things organized in kubernetes. were putting all the arc stuff in its own namespace so it doesnt interfere with other workloads.
+
+the depends_on makes sure the node group and addons are ready before we try to create the namespace. terraform doesnt always get the order right, especially with kubernetes resources.
+
+## arc helm release
+
+we install arc using helm:
+
+helm makes it easy to install complex applications like arc. we point it to the official chart repository and tell it to install in our arc namespace.
+
+the wait and timeout options are important because helm installations can take a while. without these, terraform might timeout before the installation completes.
+
+## aws auth configmap
+
+this is CRUCIAL for allowing our nodes and jumpbox to access the cluster:
+
+the aws-auth configmap maps aws iam roles to kubernetes users and groups. this is how we control who can access what in our cluster.
+
+we map our node role to the system:nodes group so the nodes can join the cluster. we also map our ec2 role to system:masters so our jumpbox can administer the cluster.
+
+## oidc setup for irsa
+
+we set up oidc for irsa which allows pods to assume iam roles:
+
+this is way more secure than using access keys because the credentials are temporary and managed by aws. we create an oidc provider for our cluster and then create roles that can be assumed by service accounts.
+
+the thumbprint comes from the clusters oidc issuer certificate. we have to wait for the oidc issuer to be ready before we can create the provider.
+
+## arc runner role
+
+we create a special role for arc runners:
+
+this role can be assumed by pods in our arc namespace using the my-runner-sa service account. we give it s3 full access for this example, but in production youd want to be more restrictive.
+
+irsa is one of the coolest features of eks - it lets us grant aws permissions to pods without storing credentials in the cluster.
+
+## arc runner helm release
+
+we install our custom runner configuration:
+
+this uses our own helm chart with custom values. we point it to our ecr image and set the service account to use our irsa role.
+
+the depends_on makes sure everything is ready before we try to install the runners. helm can be finicky about dependencies.
+
+## ecr repository
+
+we create a private ecr repository for our custom runner image:
+
+ecr is aws's container registry. its secure and integrates well with eks. we set image_tag_mutability to mutable so we can update the latest tag.
+
+force_delete is set to true so terraform can delete the repository even if it contains images. be careful with this in production.
+
+## ecr authentication
+
+we get an ecr auth token and create a kubernetes secret:
+
+this secret allows our pods to authenticate with ecr and pull images. without this, they wouldnt be able to pull our custom runner image.
+
+the auth token is temporary and managed by aws, which is more secure than using long-lived credentials.
+
+## docker image build process
+
+we build and push our custom runner image:
+
+this is a three-step process: login to ecr, build the image, and push it. we use null resources with local-exec to run docker commands.
+
+the docker build includes specific versions of the runner and runner-container-hooks. we use --no-cache to ensure we get a fresh build every time.
+
+## ec2 jumpbox security group
+
+we create a security group for our jumpbox:
+
+this allows ssh access from anywhere (which might not be ideal for production) and http/https access. the egress rule allows outbound traffic to anywhere.
+
+security groups are stateful, so we dont need to explicitly allow return traffic.
+
+## ec2 iam role
+
+we create a role for our jumpbox:
+
+this role allows the ec2 service to assume it. we attach several policies that give the jumpbox access to eks, ecr, and ec2.
+
+the jumpbox needs these permissions to manage our eks cluster and pull images from ecr.
+
+## ec2 key pair
+
+we generate an ssh key pair for accessing the jumpbox:
+
+the tls_private_key resource generates a new key pair. we then create an aws key pair from the public key.
+
+the private key is outputted by terraform so we can use it to ssh into the jumpbox. we mark it as sensitive so it doesnt show in logs.
+
+## ec2 instance
+
+finally, we create the jumpbox instance:
+
+we use the latest amazon linux 2 ami. the instance is placed in a public subnet with a public ip. we attach our security group and iam instance profile.
+
+the key_name references our key pair so we can ssh into the instance. the depends_on ensures the route table association exists before creating the instance.
+
+## outputs
+
+we output useful information:
+
+the ec2 instance id, public ip, and security group id. the private key is outputted as sensitive. we also output vpc and subnet ids for reference.
+
+the eks cluster name and node group name are outputted for use in other scripts or terraform configurations.
+
+## connecting to the cluster
+
+to access the cluster, you need to ssh into the jumpbox:
+
+from your local machine, you cant directly access the cluster because its private. you have to go through the jumpbox. this is a security feature, not a bug.
+
+on the jumpbox, you can configure aws credentials and then run aws eks update-kubeconfig to get access to the cluster.
+
+## troubleshooting tips
+
+ive run into plenty of issues with this setup:
+
+oidc provider not being ready is a common one. we have a null resource that waits for it, but sometimes it still isnt ready.
+
+docker build failures can happen if docker isnt installed or running on the machine where you run terraform.
+
+ecr permissions issues if the node role doesnt have permission to pull images.
+
+kubectl connection issues if the aws credentials or region arent set correctly.
+
+## cost considerations
+
+this setup isnt exactly cheap:
+
+the nat gateway costs about $32 per month plus data processing fees.
+
+the eks cluster costs about $73 per month for the control plane.
+
+the ec2 instances cost depends on the type and how many you run.
+
+the eip costs about $3.60 per month if its not attached to a resource.
+
+data transfer costs can add up if youre moving a lot of data.
+
+## security considerations
+
+security was a big focus:
+
+private eks cluster with no public api access.
+
+nodes in private subnets with no public ips.
+
+minimal iam permissions using roles and policies.
+
+oidc integration for service accounts.
+
+no hardcoded credentials - everything uses iam roles.
+
+ssh access only through jumpbox.
+
+## improvements for production
+
+for production, id make a few changes:
+
+restrict ssh access to specific ip addresses.
+
+enable cluster logging for audit trails.
+
+use more restrictive network policies.
+
+implement pod security standards.
+
+use smaller instance types and scale as needed.
+
+consider using spot instances for non-production workloads.
+
+## conclusion
+
+this terraform setup creates a complete, secure environment for running github actions runners on eks. it includes all the necessary components from networking to iam to kubernetes resources.
+
+the architecture follows best practices for security with private subnets, minimal permissions, and secure access patterns. while there are areas that could be improved for production use, this provides a solid foundation for running workloads in a secure manner.
+
+the automation with terraform means we can recreate this environment consistently across different regions or accounts. this is invaluable for development, testing, and production environments.
+
+remember to always test thoroughly and consider your specific requirements before deploying to production. what works for one use case might not be appropriate for another.
