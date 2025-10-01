@@ -490,6 +490,10 @@ data:
       username: ec2-admin
       groups:
         - system:masters
+    - rolearn: ${aws_iam_role.arc_runner.arn}
+      username: arc-runner
+      groups:
+        - system:masters
 YAML
 
   depends_on = [
@@ -497,7 +501,8 @@ YAML
     aws_eks_addon.coredns,
     aws_eks_addon.kube_proxy,
     aws_eks_addon.vpc_cni,
-    aws_eks_addon.pod_identity_agent
+    aws_eks_addon.pod_identity_agent,
+    aws_iam_role.arc_runner
   ]
 }
 
@@ -551,7 +556,7 @@ resource "aws_iam_role" "arc_runner" {
         Condition = {
           StringEquals = {
             # subject must match serviceaccount in the namespace
-        "${replace(aws_eks_cluster.this.identity[0].oidc[0].issuer, "https://", "")}:sub" = "system:serviceaccount:${local.arc_namespace}:my-runner-sa"
+            "${replace(aws_eks_cluster.this.identity[0].oidc[0].issuer, "https://", "")}:sub" = "system:serviceaccount:${local.arc_namespace}:my-runner-sa"
           }
         }
       }
@@ -559,10 +564,15 @@ resource "aws_iam_role" "arc_runner" {
   })
 }
 
-# Example: give access to S3
+
 resource "aws_iam_role_policy_attachment" "arc_runner_s3" {
   role       = aws_iam_role.arc_runner.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "arc_runner_eks" {
+  role       = aws_iam_role.arc_runner.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
 

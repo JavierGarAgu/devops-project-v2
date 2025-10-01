@@ -1,0 +1,51 @@
+name: Test EKS Access
+
+on:
+  workflow_dispatch: # trigger manually
+
+jobs:
+  test-eks:
+    runs-on: [self-hosted]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Configure kubeconfig
+        run: aws eks update-kubeconfig --name private-eks --region eu-north-1
+
+      - name: Check nodes
+        run: kubectl get nodes -o wide
+
+      - name: Check system pods
+        run: kubectl get pods -n kube-system
+
+      - name: Create test namespace
+        run: kubectl create namespace gha-test || echo "namespace exists"
+
+      - name: Deploy a test pod
+        run: |
+          cat <<EOF | kubectl apply -f -
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: gha-test-pod
+            namespace: gha-test
+          spec:
+            containers:
+            - name: nginx
+              image: nginx:1.21
+              ports:
+              - containerPort: 80
+          EOF
+
+      - name: Wait for pod to be ready
+        run: kubectl wait --for=condition=Ready pod/gha-test-pod -n gha-test --timeout=120s
+
+      - name: Show test pod status
+        run: kubectl get pod gha-test-pod -n gha-test -o wide
+
+      - name: Cleanup test resources
+        if: always() # ensures cleanup runs even if previous steps fail
+        run: |
+          kubectl delete pod gha-test-pod -n gha-test --ignore-not-found
+          kubectl delete namespace gha-test --ignore-not-found
