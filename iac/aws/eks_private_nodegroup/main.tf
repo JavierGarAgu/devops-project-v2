@@ -228,6 +228,29 @@ resource "aws_default_route_table" "main" {
 # -----------------------
 
 # EKS cluster role
+
+resource "aws_iam_policy" "allow_assume_arc_runner" {
+  name        = "AllowAssumeArcRunnerRole"
+  description = "Allow terraform-admin to assume arc-runner-role"
+  policy      = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = "sts:AssumeRole"
+        Resource = aws_iam_role.arc_runner.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy_attachment" "attach_assume_arc_runner" {
+  name       = "attach-assume-arc-runner"
+  policy_arn = aws_iam_policy.allow_assume_arc_runner.arn
+  users      = ["terraform-admin"]
+}
+
+
 data "aws_iam_policy" "AmazonEKSClusterPolicy" {
   arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
