@@ -1,4 +1,4 @@
-name: test
+name: test runner connectivity
 
 on:
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: Test EKS Access
+name: Test runner EKS Access
 
 on:
   workflow_dispatch: # trigger manually
@@ -9,6 +9,9 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+
+      - name: Configure AWS CLI
+        uses: aws-actions/configure-aws-cli@v2
 
       - name: Configure kubeconfig
         run: aws eks update-kubeconfig --name private-eks --region eu-north-1

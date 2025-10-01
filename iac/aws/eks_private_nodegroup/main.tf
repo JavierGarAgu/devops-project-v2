@@ -506,6 +506,24 @@ YAML
   ]
 }
 
+resource "kubernetes_cluster_role_binding" "arc_runner_admin" {
+  metadata {
+    name = "arc-runner-admin-binding"
+  }
+
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = "cluster-admin"
+  }
+
+  subject {
+    kind      = "ServiceAccount"
+    name      = "my-runner-sa"
+    namespace = local.arc_namespace
+  }
+}
+
 resource "null_resource" "wait_for_oidc" {
   provisioner "local-exec" {
     interpreter = ["PowerShell", "-Command"]
