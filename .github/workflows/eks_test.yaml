@@ -2,11 +2,6 @@ name: Test runner EKS Access
 
 on:
   workflow_dispatch:
-    inputs:
-      account_id:
-        description: 'AWS Account ID (12-digit number)'
-        required: true
-        default: ''
 
 jobs:
   test-eks:
@@ -28,25 +23,6 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
-
-      - name: Assume arc-runner-role
-        id: assume_role
-        run: |
-          CREDS=$(aws sts assume-role \
-            --role-arn arn:aws:iam::${{ github.event.inputs.account_id }}:role/arc-runner-role \
-            --role-session-name gha-test \
-            --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' \
-            --output text)
-          read AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN <<< $CREDS
-          echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> $GITHUB_ENV
-          echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN" >> $GITHUB_ENV
-
-      - name: Install kubectl
-        run: |
-          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-          chmod +x kubectl
-          sudo mv kubectl /usr/local/bin/
 
       - name: Configure kubeconfig
         run: |
