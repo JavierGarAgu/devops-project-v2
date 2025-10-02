@@ -41,7 +41,10 @@ jobs:
       - name: install PostgreSQL client
         run: |
           sudo dnf update -y
-          sudo dnf install -y postgresql jq
+          sudo dnf install -y postgresql15 postgresql15-server postgresql15-contrib jq
+          # optionally add psql to PATH if needed
+          sudo alternatives --install /usr/bin/psql psql /usr/bin/psql-15 15
+
 
       # retrieve RDS master password from Secrets Manager
       - name: get RDS credentials
