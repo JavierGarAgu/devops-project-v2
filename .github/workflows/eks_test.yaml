@@ -1,46 +1,55 @@
-# PENDING explain it WIP
-name: Test runner EKS Access
+name: test runner eks access
 
+# trigger manually
 on:
   workflow_dispatch:
 
 jobs:
   test-eks:
+    # self-hosted eks arc runner
     runs-on: [self-hosted]
 
     steps:
-      - name: Checkout repo
+      # checkout the repository to the runner (no mandatory)
+      - name: checkout repo
         uses: actions/checkout@v4
 
-      - name: Install AWS CLI
+      # install aws cli v2 if is necessary
+      - name: install aws cli
         run: |
           curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
           unzip awscliv2.zip
           sudo ./aws/install
 
-      - name: Set up AWS CLI
+      # configure aws credentials using secrets
+      - name: set up aws cli
         uses: aws-actions/configure-aws-credentials@v3
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-north-1
 
-      - name: Configure kubeconfig
+      # configure kubectl to talk to the eks cluster
+      - name: configure kubeconfig
         run: |
           aws eks update-kubeconfig \
             --name private-eks \
             --region eu-north-1
 
-      - name: Check nodes
+      # check eks nodes status
+      - name: check nodes
         run: kubectl get nodes -o wide
 
-      - name: Check system pods
+      # check system pods in kube-system namespace
+      - name: check system pods
         run: kubectl get pods -n kube-system
 
-      - name: Create test namespace
+      # create a namespace for testing, ignore if it already exists
+      - name: create test namespace
         run: kubectl create namespace gha-test || echo "namespace exists"
 
-      - name: Deploy a test pod
+      # deploy a simple nginx pod in the test namespace
+      - name: deploy a test pod
         run: |
           cat <<EOF | kubectl apply -f -
           apiVersion: v1
@@ -56,13 +65,16 @@ jobs:
               - containerPort: 80
           EOF
 
-      - name: Wait for pod to be ready
+      # wait until the pod is ready, timeout after 120s
+      - name: wait for pod to be ready
         run: kubectl wait --for=condition=Ready pod/gha-test-pod -n gha-test --timeout=120s
 
-      - name: Show test pod status
+      # show pod status including node info
+      - name: show test pod status
         run: kubectl get pod gha-test-pod -n gha-test -o wide
 
-      - name: Cleanup test resources
+      # cleanup test resources runs even if previous steps fail
+      - name: cleanup test resources
         if: always()
         run: |
           kubectl delete pod gha-test-pod -n gha-test --ignore-not-found
