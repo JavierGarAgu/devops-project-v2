@@ -396,8 +396,6 @@ resource "aws_vpc_endpoint" "interface_endpoints" {
   }
 }
 
-# ─────────────────────────────────────────────
-# Outputs
 output "admin_vm_public_ip" {
   value = aws_instance.admin_vm.public_ip
 }
