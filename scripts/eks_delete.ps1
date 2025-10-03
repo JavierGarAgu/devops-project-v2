@@ -2,7 +2,6 @@
 # CONFIGURATION
 # -------------------------
 $Folder1 = "..\iac\aws\eks_private_nodegroup"
-$Folder2 = "..\iac\aws\delete_eks_private_nodegroup"
 
 # -------------------------
 Push-Location $Folder1
