@@ -111,7 +111,7 @@ resource "aws_iam_role" "arc_runner" {
         Condition = {
           StringEquals = {
             # subject must match serviceaccount in the namespace
-            "${replace(aws_eks_cluster.this.identity[0].oidc[0].issuer, "https://", "")}:sub" = "system:serviceaccount:${local.arc_namespace}:my-runner-sa"
+            "${replace(aws_eks_cluster.this.identity[0].oidc[0].issuer, "https://", "")}:sub" = "system:serviceaccount:${var.arc_namespace}:my-runner-sa"
           }
         }
       }

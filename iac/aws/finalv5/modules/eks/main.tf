@@ -1,3 +1,14 @@
+terraform {
+  required_version = ">= 0.13"
+
+  required_providers {
+    kubectl = {
+      source  = "gavinbunney/kubectl"
+      version = ">= 1.19.0"
+    }
+  }
+}
+
 # -----------------------------
 provider "kubernetes" {
   host                   = aws_eks_cluster.this.endpoint

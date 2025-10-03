@@ -23,6 +23,7 @@ module "network" {
 
 module "iam" {
   source = "./modules/iam"
+  arc_namespace = var.arc_namespace
 }
 
 
@@ -40,6 +41,8 @@ module "eks" {
 
 module "inside_eks" {
   source             = "./modules/inside_eks"
+  github_token = var.github_token
+  arc_namespace = var.arc_namespace
 }
 
 module "rds"{

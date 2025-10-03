@@ -1,3 +1,14 @@
+terraform {
+  required_version = ">= 0.13"
+
+  required_providers {
+    kubectl = {
+      source  = "gavinbunney/kubectl"
+      version = ">= 1.19.0"
+    }
+  }
+}
+
 provider "kubernetes" {
   host                   = aws_eks_cluster.this.endpoint
   cluster_ca_certificate = base64decode(aws_eks_cluster.this.certificate_authority[0].data)
@@ -118,7 +129,7 @@ resource "kubernetes_cluster_role_binding" "arc_runner_admin" {
   subject {
     kind      = "ServiceAccount"
     name      = "my-runner-sa"
-    namespace = local.arc_namespace
+    namespace = var.arc_namespace
   }
 }
 
