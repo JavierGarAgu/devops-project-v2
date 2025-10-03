@@ -193,3 +193,18 @@ resource "aws_default_route_table" "main" {
     Name = "project-rtb-main"
   }
 }
+
+# -----------------------
+# RDS Subnet Group (use your existing private subnets)
+# -----------------------
+resource "aws_db_subnet_group" "private" {
+  name       = "private-db-subnet-group"
+  subnet_ids = [
+    aws_subnet.private1_a.id,
+    aws_subnet.private2_b.id,
+    aws_subnet.private3_c.id
+  ]
+  tags = {
+    Name = "private-db-subnet-group"
+  }
+}
